@@ -92,7 +92,7 @@ export const getDashboardStats = async (req, res) => {
             {
                 $group: {
                     _id: null,
-                    totalPurchases: { $sum: "$totalInvoiceAmount" },
+                    totalPurchases: { $sum: "$totalAmount" },
                     count: { $sum: 1 }
                 }
             }

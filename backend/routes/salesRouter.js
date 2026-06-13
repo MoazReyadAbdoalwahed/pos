@@ -11,6 +11,6 @@ router.post('/check-invoice', userAuth, checkInvoice);
 router.post('/return-invoice', userAuth, adminOnly, returnInvoice);
 
 // 📋 مسار عرض فواتير المبيعات والمرتجع
-router.get('/invoices', userAuth, getAllInvoices);
+router.get('/', userAuth, getAllInvoices);
 
 export default router;

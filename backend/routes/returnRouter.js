@@ -31,4 +31,19 @@ router.get('/pending', userAuth, adminOnly, getPendingReturns);
 // 📜 جلب سجل طلبات المرتجعات بالكامل
 router.get('/history', userAuth, getReturnHistory);
 
+// 🗑️ حذف طلب مرتجع (أدمن فقط) - للصيانة والتنظيف
+router.delete('/:id', userAuth, adminOnly, async (req, res) => {
+    try {
+        const ReturnRequest = (await import('../models/retunModel.js')).default;
+        const { id } = req.params;
+        const deleted = await ReturnRequest.findByIdAndDelete(id);
+        if (!deleted) {
+            return res.status(404).json({ message: "طلب المرتجع غير موجود" });
+        }
+        res.status(200).json({ message: "تم حذف طلب المرتجع بنجاح", deleted });
+    } catch (error) {
+        res.status(500).json({ message: "خطأ في حذف طلب المرتجع", error: error.message });
+    }
+});
+
 export default router;

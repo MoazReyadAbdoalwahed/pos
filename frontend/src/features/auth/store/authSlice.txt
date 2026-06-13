@@ -1,0 +1,123 @@
+import { createSlice } from '@reduxjs/toolkit';
+import type { PayloadAction } from '@reduxjs/toolkit';
+import { loginUser, adminLogin, registerEmployee, getAllEmployees, deactivateEmployee } from './authThunks';
+import { tokenManager } from '../../../api/tokenManager';
+import type { LoginResponse, User } from '../../../types/users';
+
+interface AuthState {
+    user: User | null;
+    token: string | null;
+    loading: boolean;
+    error: string | null;
+    employees: User[]; // لإدارة الموظفين من قبل الأدمن
+    isAuthenticated: boolean; // لتتبع ما إذا كان المستخدم مسجل دخوله
+}
+
+const initialState: AuthState = {
+    user: null,
+    token: tokenManager.getToken(),
+    loading: false,
+    error: null,
+    employees: [],
+    isAuthenticated: !!tokenManager.getToken(), // تفعيلها تلقائيًا إذا كان التوكن موجودًا في الـ localStorage
+};
+
+const authSlice = createSlice({
+    name: 'auth',
+    initialState,
+    reducers: {
+        logout: (state) => {
+            state.user = null;
+            state.token = null;
+            tokenManager.clearToken();
+            state.isAuthenticated = false;
+        },
+        clearError: (state) => {
+            state.error = null;
+        },
+    },
+    extraReducers: (builder) => {
+        builder
+            // --- Login User ---
+            .addCase(loginUser.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+            }) // تم إضافة قوس الإغلاق المفقود هنا 
+            .addCase(loginUser.fulfilled, (state, action: PayloadAction<LoginResponse>) => {
+                state.loading = false;
+                state.user = action.payload.user;
+                state.token = action.payload.token;
+                state.isAuthenticated = true;
+            })
+            .addCase(loginUser.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload as string;
+            }) // تم إضافة قوس الإغلاق المفقود هنا
+
+            // --- Admin Login ---
+            .addCase(adminLogin.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+            })
+            .addCase(adminLogin.fulfilled, (state, action: PayloadAction<LoginResponse>) => {
+                state.loading = false;
+                state.user = action.payload.user;
+                state.token = action.payload.token;
+                state.isAuthenticated = true;
+            })
+            .addCase(adminLogin.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload as string;
+            })
+
+            // --- Register Employee ---
+            .addCase(registerEmployee.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+            })
+            .addCase(registerEmployee.fulfilled, (state) => {
+                state.loading = false;
+                state.error = null;
+            })
+            .addCase(registerEmployee.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload as string;
+            })
+
+            // --- Get All Employees ---
+            .addCase(getAllEmployees.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+            })
+            .addCase(getAllEmployees.fulfilled, (state, action: PayloadAction<User[]>) => {
+                state.loading = false;
+                state.employees = action.payload;
+            })
+            .addCase(getAllEmployees.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload as string;
+            })
+
+            // --- Deactivate Employee ---
+            .addCase(deactivateEmployee.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+            })
+            .addCase(deactivateEmployee.fulfilled, (state, action: PayloadAction<string>) => {
+                state.loading = false;
+
+                // تحديث حالة الموظف داخل مصفوفة الـ State فوراً دون الحاجة لإعادة طلب البيانات من السيرفر
+                // نقوم بالبحث عن الموظف عبر الـ ID الذي أرجعته دالة الـ Thunk وحذف الموظف من القائمة
+                state.employees = state.employees.filter(
+                    (employee) => employee.id !== action.payload
+                );
+            })
+            .addCase(deactivateEmployee.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload as string;
+            });
+    },
+});
+
+export const { logout, clearError } = authSlice.actions;
+export default authSlice.reducer;

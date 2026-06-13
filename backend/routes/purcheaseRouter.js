@@ -14,7 +14,7 @@ const router = express.Router();
 
 
 // Create a new purchase invoice
-router.post('/', userAuth, adminAuth, createPurchaseInvoice);
+router.post('/add', userAuth, adminAuth, createPurchaseInvoice);
 // Get all purchase invoices
 router.get('/', userAuth, adminAuth, getAllPurchaseInvoices);
 // Get a purchase invoice by ID

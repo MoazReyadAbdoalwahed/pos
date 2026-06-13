@@ -22,23 +22,56 @@ const createPurchaseInvoice = async (req, res) => {
         const totalAmount = items.reduce((total, item) => total + (Number(item.puchasePrice) * Number(item.quantity)), 0);
 
         // تحديث كميات المنتجات في المخزن بشكل متزامن وصحيح (for...of)
+        const processedItems = [];
+
         for (const item of items) {
-            if (!mongoose.Types.ObjectId.isValid(item.productId)) {
-                return res.status(400).json({ message: `Invalid Product ID: ${item.productId}` });
+            const itemSku = item.sku || item.barcode || item.name?.replace(/\s+/g, '-').toUpperCase();
+            if (!itemSku) {
+                return res.status(400).json({ message: 'Each purchase item must include a SKU or barcode.' });
             }
 
-            const product = await Product.findById(item.productId);
-            if (product) {
-                product.stock += Number(item.quantity);
-                // تحديث أسعار المنتج تلقائياً بناءً على آخر فاتورة شراء (ميزة اختيارية احترافية)
-                product.purchasePrice = Number(item.puchasePrice);
-                if (item.suggestedSalePrice) product.salePrice = Number(item.suggestedSalePrice);
-                if (item.suggestedWholesalePrice) product.wholesalePrice = Number(item.suggestedWholesalePrice);
-
-                await product.save();
-            } else {
-                return res.status(404).json({ message: `Product with ID ${item.productId} not found.` });
+            let product = null;
+            if (item.productId && mongoose.Types.ObjectId.isValid(item.productId)) {
+                product = await Product.findById(item.productId);
             }
+
+            if (!product && itemSku) {
+                product = await Product.findOne({ sku: itemSku });
+            }
+
+            if (!product) {
+                // إنشاء منتج جديد تلقائياً إذا كان غير موجود في النظام
+                const salePrice = item.suggestedSalePrice ? Number(item.suggestedSalePrice) : Number(item.puchasePrice);
+                const wholesalePrice = item.suggestedWholesalePrice ? Number(item.suggestedWholesalePrice) : 0;
+                const newProduct = new Product({
+                    name: item.name,
+                    sku: itemSku,
+                    purchasePrice: Number(item.puchasePrice),
+                    salePrice,
+                    wholesalePrice,
+                    stock: 0,
+                    supplierName,
+                    supplierInvoiceNumber: purchaseInvoiceNumber,
+                    supplierInvoiceDate: purchaseDate,
+                });
+                product = await newProduct.save();
+            }
+
+            // تأكيد العلاقة بين الصنف والمنتج
+            item.productId = product._id;
+            item.sku = product.sku;
+
+            product.stock += Number(item.quantity);
+            product.purchasePrice = Number(item.puchasePrice);
+            if (item.suggestedSalePrice !== undefined && item.suggestedSalePrice !== null) {
+                product.salePrice = Number(item.suggestedSalePrice);
+            }
+            if (item.suggestedWholesalePrice !== undefined && item.suggestedWholesalePrice !== null) {
+                product.wholesalePrice = Number(item.suggestedWholesalePrice);
+            }
+
+            await product.save();
+            processedItems.push(item);
         }
 
         // حفظ الفاتورة
@@ -46,7 +79,7 @@ const createPurchaseInvoice = async (req, res) => {
             purchaseInvoiceNumber,
             supplierName,
             purchaseDate,
-            items,
+            items: processedItems,
             totalAmount,
         });
 

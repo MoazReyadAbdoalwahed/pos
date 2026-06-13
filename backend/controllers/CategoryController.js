@@ -91,7 +91,12 @@ const updateCategory = async (req, res) => {
         if (!updatedCategory) {
             return res.status(404).json({ message: 'Category not found' });
         }
-        res.status(200).json({ message: 'Category updated successfully', category: updatedCategory });
+        res.status(200).json({
+            message: 'Category updated successfully', ategory: {
+                ...updatedCategory.toObject(),
+                id: updatedCategory._id.toString(),
+            }
+        });
     } catch (error) {
         console.error('Error updating category:', error);
         res.status(500).json({ message: 'Failed to update category', error: error.message });

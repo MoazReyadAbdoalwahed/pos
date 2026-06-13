@@ -81,6 +81,7 @@ const adminLogin = async (req, res) => {
             status: "success",
             token,
             user: {
+                id: "super-admin-id-123456",
                 name: "Main Admin",
                 username: adminUserName,
                 role: "admin"
@@ -121,7 +122,15 @@ const registerEmployee = async (req, res) => {
             isActive: true, // Set the new user as active by default
         });
         await newUser.save();
-        res.status(201).json({ message: "Employee registered successfully" });
+        res.status(201).json({
+            message: "Employee registered successfully",
+            employee: {
+                id: newUser._id,
+                name: newUser.name,
+                username: newUser.username,
+                role: newUser.role
+            }
+        });
     } catch (err) {
         console.error("Employee registration error:", err.message);
         res.status(500).json({ message: "Server error" });
@@ -155,7 +164,10 @@ const deactivateEmployee = async (req, res) => {
         if (!employee) {
             return res.status(404).json({ message: "Employee not found" });
         }
-        res.status(200).json({ message: "Employee deactivated successfully", employee });
+        res.status(200).json({
+            message: "Employee deactivated successfully",
+            employeeId: employee._id.toString()
+        });
     } catch (err) {
         console.error("Deactivate employee error:", err.message);
         res.status(500).json({ status: "error", message: "Server error" });

@@ -110,15 +110,20 @@ const checkInvoice = async (req, res) => {
 // 🔄 2. معالجة مرتجع الفواتير الآمن والمربوط بالفاتورة الأصلية
 const returnInvoice = async (req, res) => {
     try {
-        const { originalInvoiceNumber, itemsToReturn, cashierId } = req.body;
+        const { originalInvoiceNumber, itemsToReturn, cashierId, returnType } = req.body;
 
         if (!originalInvoiceNumber || !itemsToReturn || !itemsToReturn.length) {
             return res.status(400).json({ message: 'رقم الفاتورة الأصلية والأصناف المراد إرجاعها مطلوبة' });
         }
 
-        const originalInvoice = await Sale.findOne({ invoiceNumber: originalInvoiceNumber, invoiceType: 'sales' });
-        if (!originalInvoice) {
-            return res.status(404).json({ message: 'لم يتم العثور على فاتورة المبيعات الأصلية في النظام' });
+        const isDirectReturn = returnType === 'direct' || originalInvoiceNumber === 'DIRECT-RETURN';
+        let originalInvoice = null;
+
+        if (!isDirectReturn) {
+            originalInvoice = await Sale.findOne({ invoiceNumber: originalInvoiceNumber, invoiceType: 'sales' });
+            if (!originalInvoice) {
+                return res.status(404).json({ message: 'لم يتم العثور على فاتورة المبيعات الأصلية في النظام' });
+            }
         }
 
         const returnInvoiceNumber = `RET-${Date.now().toString().slice(-6)}`;
@@ -127,25 +132,37 @@ const returnInvoice = async (req, res) => {
         const processedReturnItems = [];
 
         for (const returnItem of itemsToReturn) {
-            const originalItem = originalInvoice.items.find(i => i.productId.toString() === returnItem.productId);
-            if (!originalItem) {
-                return res.status(400).json({ message: `المنتج ${returnItem.productId} ليس جزءاً من الفاتورة الأصلية.` });
-            }
-
-            if (returnItem.quantity > originalItem.quantity) {
-                return res.status(400).json({ message: `لا يمكن إرجاع كمية أكبر مما تم شراؤه بالفعل في الفاتورة الأصلية (${originalItem.quantity} قطع).` });
-            }
-
             const product = await Product.findById(returnItem.productId);
             if (!product) {
                 return res.status(404).json({ message: `المنتج غير متوفر في النظام لإجراء المرتجع` });
+            }
+
+            const priceType = returnItem.priceType || 'sale';
+            const returnPrice = Number(returnItem.activePrice ?? product.salePrice);
+            if (returnPrice < 0) {
+                return res.status(400).json({ message: 'السعر المرجع يجب أن يكون رقماً موجباً أو صفر' });
+            }
+
+            if (isDirectReturn) {
+                if (returnItem.quantity <= 0) {
+                    return res.status(400).json({ message: 'يجب أن تكون كمية المرتجع أكبر من الصفر' });
+                }
+            } else {
+                const originalItem = originalInvoice.items.find(i => i.productId.toString() === returnItem.productId);
+                if (!originalItem) {
+                    return res.status(400).json({ message: `المنتج ${returnItem.productId} ليس جزءاً من الفاتورة الأصلية.` });
+                }
+
+                if (returnItem.quantity > originalItem.quantity) {
+                    return res.status(400).json({ message: `لا يمكن إرجاع كمية أكبر مما تم شراؤه بالفعل في الفاتورة الأصلية (${originalItem.quantity} قطع).` });
+                }
             }
 
             // إعادة السلع إلى الـ Stock
             product.stock += Number(returnItem.quantity);
             await product.save();
 
-            const itemReturnPrice = originalItem.salesPrice * returnItem.quantity;
+            const itemReturnPrice = returnPrice * returnItem.quantity;
             const itemReturnCost = (product.purchasePrice || 0) * returnItem.quantity;
 
             totalReturnAmount += itemReturnPrice;
@@ -153,12 +170,12 @@ const returnInvoice = async (req, res) => {
 
             processedReturnItems.push({
                 productId: returnItem.productId,
-                name: originalItem.name,
+                name: product.name,
                 quantity: returnItem.quantity,
-                salesPrice: originalItem.salesPrice,
-                wholesalePrice: originalItem.wholesalePrice || 0,
+                salesPrice: returnPrice,
+                wholesalePrice: product.wholesalePrice || 0,
                 totalItemPrice: itemReturnPrice,
-                priceType: originalItem.priceType
+                priceType
             });
         }
 

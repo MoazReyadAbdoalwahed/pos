@@ -1,0 +1,72 @@
+import { useAppDispatch, useAppSelector } from '../../../hooks/storeHooks';
+import {
+    loginUser,
+    adminLogin,
+    registerEmployee,
+    getAllEmployees,
+    deactivateEmployee
+} from '../store/authThunks';
+import { logout as logoutAction } from '../store/authSlice'; //  استيراد أكشن تسجيل الخروج الفعلي
+import {
+    selectIsAuthenticated,
+    selectCurrentUser,
+    selectToken,
+    selectUserRole,
+    selectAuthLoading,
+    selectAuthError,
+    selectUsername,
+    selectIsToken,
+    selectAdmin,
+    selectManager,
+    selectCashier,
+    selectCustomer,
+    employees
+} from '../store/authselectors'; // تأكد من اسم الملف إذا كان authSelectors.ts
+import type { EmployeeLogin, LoginCredentials } from '../../../types/users'; //  استيراد الأنواع لضمان نظافة الكود
+
+export const useAuth = () => {
+    const dispatch = useAppDispatch();
+
+    // --- State ---
+    const isAuthenticated = useAppSelector(selectIsAuthenticated);
+    const currentUser = useAppSelector(selectCurrentUser);
+    const token = useAppSelector(selectToken);
+    const userRole = useAppSelector(selectUserRole);
+    const loading = useAppSelector(selectAuthLoading);
+    const error = useAppSelector(selectAuthError);
+    const username = useAppSelector(selectUsername);
+    const isToken = useAppSelector(selectIsToken);
+    const isAdmin = useAppSelector(selectAdmin);
+    const isManager = useAppSelector(selectManager);
+    const isCashier = useAppSelector(selectCashier);
+    const isCustomer = useAppSelector(selectCustomer);
+    const employeeList = useAppSelector(employees);
+    // --- الدالة المصلحة بالكامل لإنهاء الجلسة ---
+    const logout = () => {
+        dispatch(logoutAction());
+    };
+
+    return {
+        // State
+        isAuthenticated,
+        currentUser,
+        token,
+        userRole,
+        loading,
+        error,
+        username,
+        isToken,
+        isAdmin,
+        isManager,
+        isCashier,
+        isCustomer,
+        employeeList,
+        // Actions
+        logout, //  توصيل دالة تسجيل الخروج للواجهة
+        loginUser: (credentials: LoginCredentials) => dispatch(loginUser(credentials)),
+        adminLogin: (credentials: LoginCredentials) => dispatch(adminLogin(credentials)),
+        registerEmployee: (Credentials: EmployeeLogin) => dispatch(registerEmployee(Credentials)),
+        getAllEmployees: () => dispatch(getAllEmployees()),
+        deactivateEmployee: (employeeId: string) => dispatch(deactivateEmployee(employeeId)),
+    };
+};

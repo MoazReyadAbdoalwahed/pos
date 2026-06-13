@@ -48,8 +48,7 @@ const ReturnRequestSchema = new mongoose.Schema({
     },
     cashierId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        required: true
+        ref: 'User'
     },
     status: {
         type: String,

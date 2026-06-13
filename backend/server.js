@@ -14,16 +14,28 @@ import returnRouter from './routes/returnRouter.js';
 import dashboardRouter from './routes/dashboardRouter.js';
 import telegramRouter from './routes/telegramRouter.js';
 import { startDailyReportScheduler } from "./services/Dailyreportscheduler.js";
-import TelegramLongPolling from "./services/Telegramlongpolling.js";
+// import TelegramLongPolling from "./services/Telegramlongpolling.js";
 import userAuth from "./middlewares/userAuth.js";
 
 const app = express();
 
 // enable for connecting frontend and backend
-app.use(cors());
+app.use(cors(
+    {
+        origin: 'http://localhost:5173',
+    }
+));
 
 // Middleware to parse JSON bodies with larger limit
 app.use(express.json({ limit: '50mb' }));
+
+// Disable caching for API responses
+app.use((req, res, next) => {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    next();
+});
 
 // Debug middleware to log all requests
 app.use((req, res, next) => {
@@ -54,11 +66,11 @@ mongoose.connect(process.env.MONGO_URL).then(() => {
     } catch (err) {
         console.error('Error starting daily report scheduler:', err);
     }
-    try {
-        TelegramLongPolling.startPolling();
-    } catch (err) {
-        console.error('Error starting Telegram long-polling service:', err);
-    }
+    // try {
+    //     TelegramLongPolling.startPolling();
+    // } catch (err) {
+    //     console.error('Error starting Telegram long-polling service:', err);
+    // }
 }).catch((err) => {
     console.error('Error connecting to MongoDB:', err);
 });

@@ -1,0 +1,238 @@
+import React, { useEffect, useState } from 'react';
+import { useAuth } from '../hooks/useAuth'; // تأكد من صحة مسار الـ Hook الخاص بك
+import PermissionGate from './PermissionGate';
+import { useAppSelector } from '../../../hooks/storeHooks'; // مسار الـ store hooks لاستدعاء مصفوفة الموظفين
+
+export default function EmployeeManagement() {
+    const { getAllEmployees, deactivateEmployee, registerEmployee, loading, error } = useAuth();
+
+    // جلب مصفوفة الموظفين من الـ Redux State مباشرة
+    const employees = useAppSelector((state) => state.auth.employees);
+
+    // بيانات الموظف الجديد للنموذج (Form)
+    const [name, setName] = useState('');
+    const [username, setUsername] = useState('');
+    const [password, setPassword] = useState('');
+    const [role, setRole] = useState<'manager' | 'cashier' | 'customer'>('cashier');
+
+    // جلب الموظفين فور تحميل الصفحة
+    useEffect(() => {
+        getAllEmployees();
+    }, []);
+
+    const handleCreateEmployee = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!name || !username || !password) return;
+
+        const result = await registerEmployee({ name, username, password, role } as any);
+
+        // إذا تم التسجيل بنجاح، قم بتفريغ الحقول وإعادة تحديث الجدول
+        if (result.meta?.requestStatus === 'fulfilled') {
+            alert('تم تسجيل الموظف الجديد بنجاح!');
+            setName('');
+            setUsername('');
+            setPassword('');
+            getAllEmployees(); // تحديث الجدول تلقائياً
+        } else if (result.meta?.requestStatus === 'rejected') {
+            alert('فشل تسجيل الموظف: ' + (result.payload || 'خطأ غير معروف'));
+        }
+    };
+
+    return (
+        <div style={{ padding: '20px' }}>
+            <h1>لوحة إدارة شؤون الموظفين</h1>
+
+            {/* بوابه صلاحيات: فقط الأدمن يرى نموذج إضافة موظف جديد */}
+            <PermissionGate allowedRoles={['admin']}>
+                <div style={{ background: '#f9f9f9', padding: '20px', borderRadius: '8px', marginBottom: '30px' }}>
+                    <h3>تسجيل موظف جديد بالمنظومة</h3>
+                    <form onSubmit={handleCreateEmployee} style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                        <input type="text" placeholder="الاسم الكامل" value={name} onChange={e => setName(e.target.value)} required />
+                        <input type="text" placeholder="اسم المستخدم" value={username} onChange={e => setUsername(e.target.value)} required />
+                        <input type="password" placeholder="كلمة المرور" value={password} onChange={e => setPassword(e.target.value)} required />
+                        <select value={role} onChange={e => setRole(e.target.value as any)}>
+                            <option value="manager">مدير (Manager)</option>
+                            <option value="cashier">كاشير (Cashier)</option>
+                            <option value="customer">عميل (Customer)</option>
+                        </select>
+                        <button type="submit" disabled={loading}>إضافة ومزامنة</button>
+                    </form>
+                </div>
+            </PermissionGate>
+
+            {/* بوابة صلاحيات: الأدمن والمدير فقط يمكنهم رؤية جدول الموظفين وحساباتهم */}
+            <PermissionGate
+                allowedRoles={['admin', 'manager']}
+                fallback={<p style={{ color: 'red' }}>عذراً، لا تمتلك الصلاحيات الإدارية الكافية لعرض قائمة الموظفين.</p>}
+            >
+                <h3>قائمة الموظفين الحاليين بالشركة</h3>
+                {loading && <p>جاري تحديث بيانات الجدول من السيرفر...</p>}
+                {error && <p style={{ color: 'red' }}>خطأ: {error}</p>}
+
+                <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
+                    <thead>
+                        <tr style={{ background: '#eee', textAlign: 'right' }}>
+                            <th style={{ padding: '10px', border: '1px solid #ddd' }}>الاسم</th>
+                            <th style={{ padding: '10px', border: '1px solid #ddd' }}>اسم المستخدم</th>
+                            <th style={{ padding: '10px', border: '1px solid #ddd' }}>الوظيفة (Role)</th>
+                            <th style={{ padding: '10px', border: '1px solid #ddd' }}>إجراءات إدارية</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {employees && employees.length > 0 ? (
+                            employees.map((emp, index) => (
+                                <tr key={emp?.id || index}>
+                                    <td style={{ padding: '10px', border: '1px solid #ddd' }}>{emp?.name}</td>
+                                    <td style={{ padding: '10px', border: '1px solid #ddd' }}>{emp?.username}</td>
+                                    <td style={{ padding: '10px', border: '1px solid #ddd' }}>{emp?.role}</td>
+                                    <td style={{ padding: '10px', border: '1px solid #ddd' }}>
+                                        {/* فقط الأدمن يمكنه الضغط على زر تعطيل حساب الموظف */}
+                                        <PermissionGate allowedRoles={['admin']} fallback={<span>عرض فقط (لا يمكنك التعديل)</span>}>
+                                            <button
+                                                onClick={() => {
+                                                    if (confirm(`هل أنت متأكد من رغبتك في تعطيل حساب الموظف: ${emp?.name}؟`)) {
+                                                        if (emp?.id) {
+                                                            deactivateEmployee(emp.id);
+                                                        } else {
+                                                            alert('خطأ: معرف الموظف غير متوفر');
+                                                        }
+                                                    }
+                                                }}
+                                                style={{ background: '#dc3545', color: '#fff', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer' }}
+                                            >
+                                                إيقاف الحساب
+                                            </button>
+                                        </PermissionGate>
+                                    </td>
+                                </tr>
+                            ))
+                        ) : (
+                            <tr>
+                                <td colSpan={4} style={{ textAlign: 'center', padding: '20px' }}>
+                                    {loading ? 'جاري التحميل...' : 'لا يوجد موظفين مسجلين حالياً.'}
+                                </td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+            </PermissionGate>
+        </div>
+    );
+}
+
+
+
+
+
+
+
+
+
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../hooks/useAuth'; // تأكد من صحة مسار الـ Hook الخاص بك
+import { useNavigate } from 'react-router-dom';
+
+export default function Login() {
+    const [usernameInput, setUsernameInput] = useState('');
+    const [passwordInput, setPasswordInput] = useState('');
+    const [isAdminLogin, setIsAdminLogin] = useState(false);
+
+    const { loginUser, adminLogin, loading, error, isAuthenticated, isAdmin } = useAuth();
+    const navigate = useNavigate();
+
+    // التحقق إذا كان مسجلاً للدخول بالفعل يتم توجيهه مباشرة
+    useEffect(() => {
+        if (isAuthenticated) {
+            if (isAdmin) {
+                navigate('/admin/dashboard');
+            } else {
+                navigate('/dashboard');
+            }
+        }
+    }, [isAuthenticated, isAdmin, navigate]);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (!usernameInput || !passwordInput) return;
+
+        const credentials = { username: usernameInput, password: passwordInput };
+
+        if (isAdminLogin) {
+            await adminLogin(credentials);
+        } else {
+            await loginUser(credentials);
+        }
+    };
+
+    return (
+        <div style={{ maxWidth: '400px', margin: '50px auto', padding: '20px', border: '1px solid #ccc', borderRadius: '8px' }}>
+            <h2>{isAdminLogin ? 'تسجيل دخول الإدارة (Admin)' : 'تسجيل دخول الموظفين'}</h2>
+
+            {error && <div style={{ color: 'red', marginBottom: '15px' }}>{error}</div>}
+
+            <form onSubmit={handleSubmit}>
+                <div style={{ marginBottom: '15px' }}>
+                    <label style={{ display: 'block', marginBottom: '5px' }}>اسم المستخدم:</label>
+                    <input
+                        type="text"
+                        value={usernameInput}
+                        onChange={(e) => setUsernameInput(e.target.value)}
+                        style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }}
+                        required
+                    />
+                </div>
+
+                <div style={{ marginBottom: '15px' }}>
+                    <label style={{ display: 'block', marginBottom: '5px' }}>كلمة المرور:</label>
+                    <input
+                        type="password"
+                        value={passwordInput}
+                        onChange={(e) => setPasswordInput(e.target.value)}
+                        style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }}
+                        required
+                    />
+                </div>
+
+                <button type="submit" disabled={loading} style={{ width: '100%', padding: '10px', background: '#007bff', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+                    {loading ? 'جاري التحميل...' : 'تسجيل الدخول'}
+                </button>
+            </form>
+
+            <div style={{ marginTop: '20px', textAlign: 'center' }}>
+                <button
+                    onClick={() => setIsAdminLogin(!isAdminLogin)}
+                    style={{ background: 'none', border: 'none', color: '#007bff', cursor: 'pointer', textDecoration: 'underline' }}
+                >
+                    {isAdminLogin ? 'التحول لتسجيل دخول الموظفين العاديين' : 'التحول لتسجيل دخول المسؤول الإداري (Admin)'}
+                </button>
+            </div>
+        </div>
+    );
+}
+
+
+
+
+
+
+import React from 'react';
+import { useAuth } from '../hooks/useAuth'; // تأكد من صحة مسار الـ Hook الخاص بك
+
+interface PermissionGateProps {
+    children: React.ReactNode;
+    allowedRoles: ('admin' | 'manager' | 'cashier' | 'customer')[];
+    fallback?: React.ReactNode; // اختياري: ماذا يظهر إذا لم يكن يملك الصلاحية (مثلاً رسالة خطأ)
+}
+
+export default function PermissionGate({ children, allowedRoles, fallback = null }: PermissionGateProps) {
+    const { userRole, isAuthenticated } = useAuth();
+
+    // إذا لم يكن مسجلاً للدخول من الأساس، أو دور المستخدم ليس من الأدوار المسموح لها
+    if (!isAuthenticated || !userRole || !allowedRoles.includes(userRole)) {
+        return <>{fallback}</>;
+    }
+
+    // إذا نجح الفحص، يتم إظهار المحتوى الداخلي بشكل طبيعي
+    return <>{children}</>;
+}

@@ -14,7 +14,7 @@ import adminAuth from '../middlewares/adminOnly.js';
 const router = express.Router();
 
 // Create a new product
-router.post('/', userAuth, adminAuth, createProduct);
+router.post('/add', userAuth, adminAuth, createProduct);
 // Get all products
 router.get('/', userAuth, getProducts);
 // Get a single product by ID

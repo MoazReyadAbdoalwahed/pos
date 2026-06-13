@@ -1,0 +1,77 @@
+import { createAsyncThunk } from '@reduxjs/toolkit';
+import { axiosInstance } from '../../../api/axiosInstance';
+import type {
+    LoginCredentials,
+    LoginResponse,
+    User,
+    RegisterEmployeeResponse,
+    GetAllEmployeesResponse
+} from '../../../types/users';
+import { tokenManager } from '../../../api/tokenManager';
+
+
+// --- Async Thunks ---
+
+export const loginUser = createAsyncThunk<LoginResponse, LoginCredentials>(
+    'auth/loginUser',
+    async (credentials, { rejectWithValue }) => {
+        try {
+            const response = await axiosInstance.post<LoginResponse>('/users/login', credentials);
+            tokenManager.setToken(response.data.token);
+            return response.data;
+        } catch (error: any) {
+            return rejectWithValue(error.response?.data?.message || 'Login failed');
+        }
+    }
+);
+
+export const adminLogin = createAsyncThunk<LoginResponse, LoginCredentials>(
+    'auth/adminLogin',
+    async (credentials, { rejectWithValue }) => {
+        try {
+            const response = await axiosInstance.post<LoginResponse>('/users/admin/login', credentials);
+            tokenManager.setToken(response.data.token);
+            return response.data;
+        } catch (error: any) {
+            return rejectWithValue(error.response?.data?.message || 'Admin login failed');
+        }
+    }
+);
+
+export const registerEmployee = createAsyncThunk<RegisterEmployeeResponse, LoginCredentials>(
+    'auth/registerEmployee',
+    async (credentials, { rejectWithValue }) => {
+        try {
+            // Server responds with { message: "..." }, no token here
+            const response = await axiosInstance.post<RegisterEmployeeResponse>('/users/register-employee', credentials);
+            return response.data;
+        } catch (error: any) {
+            return rejectWithValue(error.response?.data?.message || 'Employee registration failed');
+        }
+    }
+);
+
+export const getAllEmployees = createAsyncThunk<User[]>(
+    'auth/getAllEmployees',
+    async (_, { rejectWithValue }) => {
+        try {
+            // Server returns { status: "success", employees: [...] }
+            const response = await axiosInstance.get<GetAllEmployeesResponse>('/users/employees');
+            return response.data.employees;
+        } catch (error: any) {
+            return rejectWithValue(error.response?.data?.message || 'Failed to fetch employees');
+        }
+    }
+);
+
+export const deactivateEmployee = createAsyncThunk<string, string>(
+    'auth/deactivateEmployee',
+    async (employeeId, { rejectWithValue }) => {
+        try {
+            await axiosInstance.put(`/users/employees/${employeeId}`);
+            return employeeId; // Pass the ID down to slice to filter it out or update status
+        } catch (error: any) {
+            return rejectWithValue(error.response?.data?.message || 'Failed to deactivate employee');
+        }
+    }
+);
