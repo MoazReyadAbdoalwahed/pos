@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useReactToPrint } from "react-to-print";
-import axios from "axios";
 import { axiosInstance } from "../../../api/axiosInstance";
-import { toast } from "react-toastify";
+import { useToast } from "../../../hooks/use-toast";
 import { useAppDispatch, useAppSelector } from "../../../hooks/storeHooks";
 import { getAllproducts } from "../../../features/products/store/Thunkproducts";
 import { selectAllProducts, selectProductsLoading } from "../../../features/products/store/productSelectors";
+import type { Product } from "../../../types/product";
 
 export interface CartItem {
     productId: string;
@@ -17,21 +17,12 @@ export interface CartItem {
     priceType: "sale" | "wholesale" | "custom";
 }
 
-export interface Product {
-    _id: string;
-    name: string;
-    stock: number;
-    salePrice: number;
-    wholesalePrice?: number;
-    sku?: string;
-    category?: string;
-}
-
 export function useSalesInterface() {
     const dispatch = useAppDispatch();
+    const { toast } = useToast();
 
     // ── Redux ──────────────────────────────────────────────
-    const products = useAppSelector(selectAllProducts) as Product[];
+    const products = useAppSelector(selectAllProducts);
     const productsLoading = useAppSelector(selectProductsLoading);
     const [cart, setCart] = useState<CartItem[]>([]);
     const cartTotal = cart.reduce((sum, it) => sum + it.activePrice * it.quantity, 0);
@@ -67,7 +58,7 @@ export function useSalesInterface() {
     const handleAddToCart = useCallback(
         (product: Product) => {
             if (product.stock === 0) {
-                toast.error(`${product.name} غير متوفر حالياً`);
+                toast({ title: `${product.name} غير متوفر حالياً`, variant: "destructive" });
                 return;
             }
 
@@ -89,9 +80,9 @@ export function useSalesInterface() {
                 };
                 return [...prev, newItem];
             });
-            toast.success(`${product.name} تمت الإضافة`);
+            toast({ title: `${product.name} تمت الإضافة` });
         },
-        [setCart]
+        [setCart, toast]
     );
 
     const handleBarcodeSubmit = useCallback(
@@ -100,11 +91,13 @@ export function useSalesInterface() {
             if (product) {
                 handleAddToCart(product);
                 reset();
-            } else {
-                toast.error("باركود غير معروف - لم يتم العثور على منتج بهذا الرمز");
+                return;
             }
+
+            toast({ title: "باركود غير معروف - لم يتم العثور على منتج بهذا الرمز", variant: "destructive" });
+            reset();
         },
-        [products, handleAddToCart]
+        [products, handleAddToCart, toast]
     );
 
     const handleRemoveFromCart = useCallback(
@@ -150,7 +143,7 @@ export function useSalesInterface() {
     // ── Checkout ───────────────────────────────────────────
     const handleCheckout = useCallback(async () => {
         if (cart.length === 0) {
-            toast.error("السلة فارغة");
+            toast({ title: "السلة فارغة", variant: "destructive" });
             return;
         }
 
@@ -165,25 +158,25 @@ export function useSalesInterface() {
                 priceType: item.priceType,
             }));
 
-            let result: any = null;
-            try {
-                const res = await axiosInstance.post(`/sales/check-invoice`, {
-                    items: backendItems,
-                    paymentMethod: "cash",
-                });
-                result = res.data?.invoice ?? { invoiceNumber: res.data?.invoiceNumber };
-            } catch (err) {
-                // Fallback to a mocked invoice number when backend is unreachable
-                result = { invoiceNumber: `INV-${Date.now()}` };
+            const res = await axiosInstance.post(`/sales/check-invoice`, {
+                items: backendItems,
+                paymentMethod: "cash",
+            });
+
+            const invoiceNumber = res.data?.invoice?.invoiceNumber ?? res.data?.invoiceNumber;
+            if (!invoiceNumber) {
+                throw new Error('لم يتم إنشاء الفاتورة بنجاح');
             }
 
-            toast.success(`تمت عملية البيع بنجاح - المبلغ: ${cartTotal.toLocaleString()} ج.م`);
+            toast({ title: `تمت عملية البيع بنجاح - المبلغ: ${cartTotal.toLocaleString()} ج.م` });
+
+            // تحديث قائمة المنتجات بعد خصم المخزون فوراً
+            await dispatch(getAllproducts());
 
             // Send via Telegram if phone provided
             if (clientPhone.trim()) {
                 setIsSendingTelegram(true);
                 try {
-                    const invoiceNumber = result?.invoiceNumber ?? `INV-${Date.now()}`;
                     await axiosInstance.post(`/telegram/send-invoice`, {
                         phone: clientPhone.trim(),
                         invoiceDetails: {
@@ -194,7 +187,7 @@ export function useSalesInterface() {
                             remainingAmount: 0,
                         },
                     });
-                    toast.success("✅ تم إرسال الفاتورة عبر التليجرام");
+                    toast({ title: "✅ تم إرسال الفاتورة عبر التليجرام" });
                     setClientPhone("");
                 } catch (err: unknown) {
                     const e = err as { response?: { status?: number; data?: { error?: string; warning?: boolean; needsLink?: boolean } } } & Error;
@@ -202,9 +195,9 @@ export function useSalesInterface() {
                     const status = e.response?.status;
                     const msg = data?.error ?? e.message ?? "خطأ عام";
                     if ((status === 200 && data?.warning) || (status === 400 && data?.needsLink)) {
-                        toast.warn(`⚠️ لم يتم ربط التليجرام - ${msg}`);
+                        toast({ title: `⚠️ لم يتم ربط التليجرام - ${msg}`, variant: "destructive" });
                     } else {
-                        toast.error(`❌ فشل إرسال التليجرام - ${msg}`);
+                        toast({ title: `❌ فشل إرسال التليجرام - ${msg}`, variant: "destructive" });
                     }
                 } finally {
                     setIsSendingTelegram(false);
@@ -214,11 +207,11 @@ export function useSalesInterface() {
             setCart([]);
         } catch (err: unknown) {
             const e = err as Error;
-            toast.error(`خطأ في العملية - ${e.message}`);
+            toast({ title: `خطأ في العملية - ${e.message}`, variant: "destructive" });
         } finally {
             setIsCheckingOut(false);
         }
-    }, [cart, cartTotal, clientPhone, setCart]);
+    }, [cart, cartTotal, clientPhone, dispatch, setCart, toast]);
 
     // ── Derived ────────────────────────────────────────────
     const filteredProducts = products.filter(

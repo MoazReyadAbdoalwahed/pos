@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
-import { toast } from "react-toastify";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useToast } from "../../../hooks/use-toast";
 import { Lock, User as UserIcon, ShieldCheck } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import FormInput from "../../../components/ui/form/FormInput";
@@ -20,6 +20,9 @@ type LoginMode = "staff" | "admin";
 export default function Login() {
     const { loginUser, adminLogin, isAuthenticated, userRole, error, loading } = useAuth();
     const navigate = useNavigate();
+    const { toast } = useToast();
+    const showSuccess = (msg: string) => toast({ title: msg });
+    const showError = (msg: string, desc?: string) => toast({ title: msg, description: desc, variant: "destructive" });
     const [loginMode, setLoginMode] = useState<LoginMode>("staff");
 
     const {
@@ -35,7 +38,7 @@ export default function Login() {
 
     useEffect(() => {
         if (isAuthenticated) {
-            toast.success("Login successful!");
+            showSuccess("Login successful!");
             switch (userRole) {
                 case "admin": navigate("/admin/dashboard"); break;
                 case "manager": navigate("/manager/dashboard"); break;
@@ -44,9 +47,9 @@ export default function Login() {
             }
         }
         if (error) {
-            toast.error(error);
+            showError("Login Error", error);
         }
-    }, [isAuthenticated, userRole, error, navigate]);
+    }, [isAuthenticated, userRole, error, navigate, showSuccess, showError]);
 
     const switchMode = (next: LoginMode) => {
         if (loading) return;

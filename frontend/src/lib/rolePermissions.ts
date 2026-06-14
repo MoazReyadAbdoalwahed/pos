@@ -9,7 +9,7 @@ const rolePermissions: Record<string, string[]> = {
     admin: [
         'sales',
         'products',
-        'categories',
+        // 'categories',
         'sales-invoices',
         'return-invoices',
         'return-approval',

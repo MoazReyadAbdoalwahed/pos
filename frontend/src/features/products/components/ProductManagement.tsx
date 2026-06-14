@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { useForm, type SubmitHandler } from "react-hook-form";
+import { useForm, useWatch, type SubmitHandler, type Resolver } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { toast } from "react-toastify";
+import { useToast } from "../../../hooks/use-toast";
 import { useAppDispatch } from "../../../hooks/storeHooks";
 import { clearError } from "../../category/store/CategorySlice";
 import {
@@ -16,6 +16,7 @@ import { useCategory } from "../../category/hook/useCategory";
 import FormInput from "../../../components/ui/form/FormInput";
 import FormSelect from "../../../components/ui/form/FormSelect";
 import Button from "../../../components/ui/Button";
+import ProductLabelModal from "./ProductLable";
 import type { ProductUpdateFormData, ProductFormData } from "../../../types/product";
 import type { CreateCategoryRequest, UpdateCategoryRequest } from "../../../types/category";
 
@@ -42,7 +43,7 @@ const COLOR_OPTIONS = [
 
 const CategorySchema = z.object({
     name: z.string().min(2, "اسم الفئة يجب أن لا يقل عن حرفين"),
-    description: z.string().optional().default(""),
+    description: z.string().default(""),
     color: z.string().min(1, "الرجاء اختيار لون").default(DEFAULT_COLOR),
 });
 
@@ -53,16 +54,20 @@ type CategoryFormInput = z.infer<typeof CategorySchema>;
 
 const getStockBadge = (stock: number) => {
     if (stock === 0)
-        return <span className="text-xs px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/30">نفاذ المخزون</span>;
-    if (stock < 5)
-        return <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">وشك النفاذ : {stock} قطع</span>; // تم تحسين النص البرمجي ليعرض ديناميكياً عدد القطع المتبقية
-    return <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">متوفر</span>;
+        return <span className="text-xs px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/30">نفذ</span>;
+    if (stock === 1)
+        return <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">وشك النفاذ: قطعة واحدة</span>;
+    return <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">متوفر: {stock} قطع</span>;
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function ProductManagement() {
     const dispatch = useAppDispatch();
+    const { toast } = useToast();
+    const showSuccess = (msg: string) => toast({ title: msg });
+    const showError = (msg: string) => toast({ title: msg, variant: "destructive" });
+    const showInfo = (msg: string) => toast({ title: msg });
     const {
         selectedAllProduct: products,
         loading,
@@ -102,6 +107,8 @@ export default function ProductManagement() {
         handleSubmit: handleProductSubmit,
         reset: resetProduct,
         clearErrors: clearProductErrors,
+        setValue: setProductValue,
+        getValues: getProductValues,
         formState: { errors: productErrors, isSubmitting: productSubmitting },
     } = useForm<ProductFormInput>({
         mode: "onBlur",
@@ -120,16 +127,16 @@ export default function ProductManagement() {
         register: registerCategory,
         handleSubmit: handleCategorySubmit,
         reset: resetCategory,
-        watch: watchCategory,
+        control: categoryControl,
         setValue: setValueCategory,
         formState: { errors: categoryErrors, isSubmitting: categorySubmitting },
     } = useForm<CategoryFormInput>({
         mode: "onBlur",
-        resolver: zodResolver(CategorySchema),
+        resolver: zodResolver(CategorySchema) as Resolver<CategoryFormInput>,
         defaultValues: { name: "", description: "", color: DEFAULT_COLOR },
     });
 
-    const selectedColor = watchCategory("color");
+    const selectedColor = useWatch({ control: categoryControl, name: "color" });
 
     // جلب البيانات الأساسية عند أول تحميل للصفحة فقط بشكل آمن
     useEffect(() => {
@@ -143,7 +150,7 @@ export default function ProductManagement() {
         try {
             await fetchAll();
             await fetchCategories();
-            toast.info("تم تحديث بيانات المخزن والمنتجات");
+            showInfo("تم تحديث بيانات المخزن والمنتجات");
         } catch (err) {
             console.error("فشل تحديث البيانات المحلية:", err);
         }
@@ -175,20 +182,27 @@ export default function ProductManagement() {
 
         resetProduct({
             name: product.name || "",
-            wholesalePrice: 0,
-            purchasePrice: 0,
+            wholesalePrice: product.wholesalePrice ?? 0,
+            purchasePrice: product.purchasePrice ?? 0,
             salePrice: product.salePrice ?? 0,
             initialStock: product.stock ?? 0,
             sku: product.sku || "",
             category: typeof product.category === 'string' ? product.category : "",
-            supplierName: "",
-            supplierInvoiceNumber: "",
-            supplierInvoiceDate: "",
+            supplierName: product.supplierName || "",
+            supplierInvoiceNumber: product.supplierInvoiceNumber || "",
+            supplierInvoiceDate: product.supplierInvoiceDate || "",
         });
         setProductDialogMode(productId);
     };
 
     // ══ Category Dialog Helpers ═════════════════════════════════════════════════
+
+    const generateSku = (baseName = "") => {
+        const prefix = baseName.trim().replace(/\s+/g, "-").toUpperCase().slice(0, 4) || "PRD";
+        const randomDigits = Math.floor(1000 + Math.random() * 9000);
+        const timeSegment = Date.now().toString().slice(-4);
+        return `${prefix}-${randomDigits}-${timeSegment}`;
+    };
 
     const closeCategoryDialog = () => {
         setCategoryDialogMode(null);
@@ -224,7 +238,6 @@ export default function ProductManagement() {
                     wholesalePrice: data.wholesalePrice,
                     purchasePrice: data.purchasePrice,
                     salePrice: data.salePrice,
-                    stock: data.initialStock,
                     sku: data.sku || undefined,
                     category: data.category || undefined,
                     supplierName: data.supplierName || undefined,
@@ -233,10 +246,11 @@ export default function ProductManagement() {
                 };
                 const result = await update(productDialogMode, updateData);
                 if (result.meta?.requestStatus === "fulfilled") {
-                    toast.success("تم تحديث المنتج بنجاح!");
+                    await fetchAll();
+                    showSuccess("تم تحديث المنتج بنجاح!");
                     closeProductDialog();
                 } else {
-                    toast.error((result.payload as string) || "فشل تحديث المنتج");
+                    showError((result.payload as string) || "فشل تحديث المنتج");
                 }
             } else {
                 const createData: ProductFormData = {
@@ -255,14 +269,14 @@ export default function ProductManagement() {
                 };
                 const result = await create(createData);
                 if (result.meta?.requestStatus === "fulfilled") {
-                    toast.success("تم إضافة المنتج بنجاح!");
+                    showSuccess("تم إضافة المنتج بنجاح!");
                     closeProductDialog();
                 } else {
-                    toast.error((result.payload as string) || "فشل إنشاء المنتج");
+                    showError((result.payload as string) || "فشل إنشاء المنتج");
                 }
             }
         } catch {
-            toast.error("حدث خطأ غير متوقع");
+            showError("حدث خطأ غير متوقع");
         }
     };
 
@@ -271,12 +285,12 @@ export default function ProductManagement() {
         try {
             const result = await remove(productId);
             if (result.meta?.requestStatus === "fulfilled") {
-                toast.success("تم حذف المنتج بنجاح!");
+                showSuccess("تم حذف المنتج بنجاح!");
             } else {
-                toast.error((result.payload as string) || "فشل حذف المنتج");
+                showError((result.payload as string) || "فشل حذف المنتج");
             }
         } catch {
-            toast.error("حدث خطأ أثناء الحذف");
+            showError("حدث خطأ أثناء الحذف");
         }
     };
 
@@ -292,22 +306,22 @@ export default function ProductManagement() {
             if (isCategoryEditing) {
                 const result = await updateCategory(categoryDialogMode as string, categoryData as UpdateCategoryRequest);
                 if (result.meta?.requestStatus === "fulfilled") {
-                    toast.success("تم تحديث الفئة بنجاح!");
+                    showSuccess("تم تحديث الفئة بنجاح!");
                     closeCategoryDialog();
                 } else {
-                    toast.error((result.payload as string) || "فشل تحديث الفئة");
+                    showError((result.payload as string) || "فشل تحديث الفئة");
                 }
             } else {
                 const result = await createCategory(categoryData as CreateCategoryRequest);
                 if (result.meta?.requestStatus === "fulfilled") {
-                    toast.success("تم إنشاء فئة جديدة بنجاح!");
+                    showSuccess("تم إنشاء فئة جديدة بنجاح!");
                     closeCategoryDialog();
                 } else {
-                    toast.error((result.payload as string) || "فشل إنشاء الفئة");
+                    showError((result.payload as string) || "فشل إنشاء الفئة");
                 }
             }
         } catch {
-            toast.error("حدث خطأ غير متوقع");
+            showError("حدث خطأ غير متوقع");
         }
     };
 
@@ -316,13 +330,13 @@ export default function ProductManagement() {
         try {
             const result = await removeCategory(categoryId);
             if (result.meta?.requestStatus === "fulfilled") {
-                toast.success("تم حذف الفئة بنجاح!");
+                showSuccess("تم حذف الفئة بنجاح!");
                 if (isCategoryEditing && categoryDialogMode === categoryId) closeCategoryDialog();
             } else {
-                toast.error((result.payload as string) || "فشل حذف الفئة");
+                showError((result.payload as string) || "فشل حذف الفئة");
             }
         } catch {
-            toast.error("حدث خطأ أثناء الحذف");
+            showError("حدث خطأ أثناء الحذف");
         }
     };
 
@@ -371,8 +385,8 @@ export default function ProductManagement() {
                     <button
                         onClick={() => setActiveTab("products")}
                         className={`px-4 py-3 font-medium transition border-b-2 ${activeTab === "products"
-                                ? "text-blue-400 border-blue-400"
-                                : "text-slate-400 border-transparent hover:text-slate-300"
+                            ? "text-blue-400 border-blue-400"
+                            : "text-slate-400 border-transparent hover:text-slate-300"
                             }`}
                     >
                         <div className="flex items-center gap-2">
@@ -383,8 +397,8 @@ export default function ProductManagement() {
                     <button
                         onClick={() => setActiveTab("categories")}
                         className={`px-4 py-3 font-medium transition border-b-2 ${activeTab === "categories"
-                                ? "text-blue-400 border-blue-400"
-                                : "text-slate-400 border-transparent hover:text-slate-300"
+                            ? "text-blue-400 border-blue-400"
+                            : "text-slate-400 border-transparent hover:text-slate-300"
                             }`}
                     >
                         <div className="flex items-center gap-2">
@@ -403,7 +417,7 @@ export default function ProductManagement() {
                                 { label: "إجمالي المنتجات", value: products?.length ?? 0, color: "text-blue-400" },
                                 { label: "إجمالي المخزون", value: products?.reduce((s: number, p) => s + (p.stock ?? 0), 0) ?? 0, color: "text-emerald-400" },
                                 { label: "نفاذ المخزون", value: products?.filter((p) => p.stock === 0).length ?? 0, color: "text-red-400" },
-                                { label: "مخزون منخفض", value: products?.filter((p) => p.stock > 0 && p.stock < 5).length ?? 0, color: "text-amber-400" },
+                                { label: "مخزون منخفض", value: products?.filter((p) => Number(p.stock || 0) === 1).length ?? 0, color: "text-amber-400" },
                             ].map((stat) => (
                                 <div key={stat.label} className="bg-slate-800 border border-white/10 rounded-xl p-4">
                                     <p className="text-slate-400 text-xs mb-1">{stat.label}</p>
@@ -459,23 +473,21 @@ export default function ProductManagement() {
                                             </div>
 
                                             {/* Prices and Info */}
-                                            <div className="space-y-1.5">
-                                                <div className="flex items-center justify-between">
-                                                    <span className="text-emerald-400 font-bold text-sm">
-                                                        {product.salePrice ?? 0} ج.م
-                                                        <span className="text-slate-500 text-xs mr-1">م.ق</span>
-                                                    </span>
-                                                    <span className="text-slate-400 text-xs">سعر البيع:</span>
-                                                </div>
-                                                {product.salePrice !== undefined && (
-                                                    <div className="flex items-center justify-between">
-                                                        <span className="text-emerald-400 font-bold text-sm">
-                                                            {product.salePrice} ج.م
-                                                            <span className="text-slate-500 text-xs mr-1">م.ق</span>
-                                                        </span>
-                                                        <span className="text-slate-400 text-xs">سعر البيع:</span>
+                                            <div className="space-y-2">
+                                                <div className="grid grid-cols-3 gap-2 text-right text-xs text-slate-400">
+                                                    <div className="rounded-2xl bg-slate-900/70 p-2">
+                                                        <p className="text-[10px] mb-1 uppercase tracking-[0.08em] text-slate-500">سعر الشراء</p>
+                                                        <p className="text-sm font-semibold text-slate-100">{product.purchasePrice?.toLocaleString() ?? 0} ج.م</p>
                                                     </div>
-                                                )}
+                                                    <div className="rounded-2xl bg-slate-900/70 p-2">
+                                                        <p className="text-[10px] mb-1 uppercase tracking-[0.08em] text-slate-500">سعر البيع</p>
+                                                        <p className="text-sm font-semibold text-emerald-400">{product.salePrice?.toLocaleString() ?? 0} ج.م</p>
+                                                    </div>
+                                                    <div className="rounded-2xl bg-slate-900/70 p-2">
+                                                        <p className="text-[10px] mb-1 uppercase tracking-[0.08em] text-slate-500">سعر الجملة</p>
+                                                        <p className="text-sm font-semibold text-indigo-400">{product.wholesalePrice?.toLocaleString() ?? 0} ج.م</p>
+                                                    </div>
+                                                </div>
                                                 <div className="flex items-center justify-between pt-1">
                                                     <div>{getStockBadge(product.stock ?? 0)}</div>
                                                     <span className="text-slate-400 text-xs">رصيد المخزن:</span>
@@ -493,17 +505,7 @@ export default function ProductManagement() {
 
                                         {/* Actions */}
                                         <div className="flex gap-2 pt-2 border-t border-white/5 mt-auto">
-                                            <Button
-                                                type="button"
-                                                variant="text"
-                                                size="sm"
-                                                icon={Printer}
-                                                iconPosition="left"
-                                                className="flex-1 border border-white/10 hover:bg-slate-700"
-                                                onClick={() => toast.info("طباعة الملصق قريباً")}
-                                            >
-                                                ملصق
-                                            </Button>
+                                            <ProductLabelModal product={product} />
                                             <Button
                                                 type="button"
                                                 variant="secondary"
@@ -655,13 +657,11 @@ export default function ProductManagement() {
                                     disabled={productSubmitting}
                                     isRtl
                                 />
-                                <FormSelect
+                                <FormInput
                                     id="supplierName"
-                                    label="الشركة المورد"
+                                    label="الشركة الموردة"
+                                    placeholder="مثال: المورد الجديد"
                                     icon={Truck}
-                                    options={[
-                                        { value: "", label: "لا يوجد موردين مسجلين" },
-                                    ]}
                                     registration={registerProduct("supplierName")}
                                     error={productErrors.supplierName?.message}
                                     disabled={productSubmitting}
@@ -701,13 +701,13 @@ export default function ProductManagement() {
                             <div className="grid grid-cols-2 gap-4">
                                 <FormInput
                                     id="initialStock"
-                                    label="الكمية الابتدائية"
+                                    label={isProductEditing ? "الكمية الحالية (غير قابلة للتعديل هنا)" : "الكمية الابتدائية"}
                                     placeholder="0"
                                     icon={Hash}
                                     type="number"
                                     registration={registerProduct("initialStock")}
                                     error={productErrors.initialStock?.message}
-                                    disabled={productSubmitting}
+                                    disabled={productSubmitting || isProductEditing}
                                     isRtl
                                 />
                                 <FormInput
@@ -733,7 +733,10 @@ export default function ProductManagement() {
                                     <button
                                         type="button"
                                         className="p-2.5 bg-slate-700 border border-white/10 rounded-lg text-slate-400 hover:text-white hover:bg-slate-600 transition shrink-0"
-                                        onClick={() => toast.info("مسح الباركود قريباً")}
+                                        onClick={() => {
+                                            const generated = generateSku(getProductValues("name"));
+                                            setProductValue("sku", generated, { shouldValidate: true });
+                                        }}
                                     >
                                         <Barcode className="w-5 h-5" />
                                     </button>
@@ -886,7 +889,7 @@ export default function ProductManagement() {
                                 <button
                                     type="submit"
                                     disabled={categorySubmitting}
-                                    className="flex-1 py-2 px-4 rounded-lg text-sm font-medium text-white bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 transition disabled:opacity-50"
+                                    className="flex-1 py-2 px-4 rounded-lg text-sm font-medium text-white bg-linear-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 transition disabled:opacity-50"
                                 >
                                     {categorySubmitting ? "جاري الحفظ..." : isCategoryEditing ? "تحديث" : "إضافة"}
                                 </button>

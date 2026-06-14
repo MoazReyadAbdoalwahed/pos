@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
     Loader2,
     AlertCircle,
@@ -11,9 +11,8 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/Card";
 import { Badge } from "../../../components/ui/Badge";
 import { Input } from "../../../components/ui/Input";
-// import { Separator } from "../../../components/ui";
 import Button from "../../../components/ui/Button";
-import { toast } from "react-toastify";
+import { useToast } from "../../../hooks/use-toast";
 import { useAppDispatch } from "../../../hooks/storeHooks"; // مسار الـ Hooks الموحد بمشروعك
 import { useAuth } from "../../../features/auth/hooks/useAuth";
 import { useProducts } from "../../products/hook/useProducts"; // استدعاء هوك المنتجات لجلب المنتجات والـ sku
@@ -42,6 +41,9 @@ type ReturnProduct = {
 const ReturnInterface: React.FC = () => {
     const dispatch = useAppDispatch();
     const { currentUser, isAuthenticated } = useAuth();
+    const { toast } = useToast();
+    const showSuccess = (msg: string) => toast({ title: msg });
+    const showError = (msg: string) => toast({ title: msg, variant: "destructive" });
 
     // جلب المنتجات المتاحة بالسيستم للتحقق من الباركود (sku)
     const { selectedAllProduct: products, fetchAll: fetchProducts } = useProducts();
@@ -54,11 +56,13 @@ const ReturnInterface: React.FC = () => {
 
     const [barcode, setBarcode] = useState("");
     const [isProcessing, setIsProcessing] = useState(false);
+    const barcodeInputRef = useRef<HTMLInputElement>(null);
+    const reasonInputRef = useRef<HTMLTextAreaElement>(null);
 
     const addToReturnCart = (product: ReturnProduct) => {
         const productId = product.id || product._id;
         if (!productId) {
-            toast.error("خطأ داخلي: معرّف المنتج غير موجود");
+            showError("خطأ داخلي: معرّف المنتج غير موجود");
             return;
         }
 
@@ -138,7 +142,10 @@ const ReturnInterface: React.FC = () => {
     const handleBarcodeSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         const query = barcode.trim();
-        if (!query) return;
+        if (!query) {
+            barcodeInputRef.current?.focus();
+            return;
+        }
 
         // البحث عن المنتج بواسطة الـ sku أو الاسم
         const product = products?.find(
@@ -146,21 +153,30 @@ const ReturnInterface: React.FC = () => {
         ) as ReturnProduct | undefined;
 
         if (!product) {
-            toast.error("المنتج غير مسجل بالسيستم");
+            showError("المنتج غير مسجل بالسيستم");
             setBarcode("");
+            barcodeInputRef.current?.focus();
             return;
         }
 
         addToReturnCart(product);
 
-        toast.success(`تم إضافة ${product.name} للمرتجع`);
+        showSuccess(`تم إضافة ${product.name} للمرتجع`);
         setBarcode("");
+        barcodeInputRef.current?.focus();
     };
 
     // ── Submit Return to Backend ──────────────────────────────────────────────
     const handleConfirmReturn = async () => {
         if (returnCart.length === 0) {
-            toast.error("يرجى تحديد عناصر للإرجاع أولاً");
+            showError("يرجى تحديد عناصر للإرجاع أولاً");
+            barcodeInputRef.current?.focus();
+            return;
+        }
+
+        if (!returnReason.trim()) {
+            showError("يرجى إدخال سبب الإرجاع");
+            reasonInputRef.current?.focus();
             return;
         }
 
@@ -185,13 +201,13 @@ const ReturnInterface: React.FC = () => {
 
             if (result.meta.requestStatus === "fulfilled") {
                 setReturnCart([]);
-                toast.success("✅ تم تسجيل عملية المرتجع الفوري بنجاح وتحديث جرد المخزن");
+                showSuccess("✅ تم تسجيل عملية المرتجع الفوري بنجاح وتحديث جرد المخزن");
             } else {
-                toast.error((result.payload as string) || "فشل تسجيل المرتجع بالسيرفر");
+                showError((result.payload as string) || "فشل تسجيل المرتجع بالسيرفر");
             }
         } catch (err) {
             console.error(err);
-            toast.error("حدث خطأ غير متوقع أثناء معالجة المرتجع");
+            showError("حدث خطأ غير متوقع أثناء معالجة المرتجع");
         } finally {
             setIsProcessing(false);
         }
@@ -402,3 +418,4 @@ const ReturnInterface: React.FC = () => {
 };
 
 export default ReturnInterface;
+

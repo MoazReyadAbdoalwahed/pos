@@ -1,9 +1,13 @@
 import React from 'react';
-import Home from './pages/index'; // تغيير الاسم البرمجي لتبدأ بحرف كبير لتجنب أخطاء React
+import Home from './pages/index';
+import { Toaster } from './components/ui/Toaster';
 
 const App = () => {
   return (
-    <Home /> // رندرة المكون بشكل صحيح بعد تكبير الحرف الأول
+    <>
+      <Home />
+      <Toaster />
+    </>
   );
 };
 

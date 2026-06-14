@@ -74,7 +74,7 @@ export interface ProductDetail {
 }
 
 export interface ProductState {
-    products: ProductListItem[];
+    products: Product[];
     selectedProduct: ProductDetail | null;
     loading: boolean;
     error: string | null;

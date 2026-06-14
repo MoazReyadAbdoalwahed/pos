@@ -20,11 +20,10 @@ import userAuth from "./middlewares/userAuth.js";
 const app = express();
 
 // enable for connecting frontend and backend
-app.use(cors(
-    {
-        origin: 'http://localhost:5173',
-    }
-));
+app.use(cors({
+    origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000'],
+    credentials: true,
+}));
 
 // Middleware to parse JSON bodies with larger limit
 app.use(express.json({ limit: '50mb' }));

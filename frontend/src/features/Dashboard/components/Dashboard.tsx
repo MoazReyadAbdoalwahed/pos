@@ -18,7 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui
 import { Badge } from "../../../components/ui/Badge";
 import Button from "../../../components/ui/Button";
 import { Input } from "../../../components/ui/Input";
-import { toast } from "react-toastify";
+import { useToast } from "../../../hooks/use-toast";
 import { useDashboard } from "../hook/useDashboard";
 import { useTelegram } from "../../telegram/hook/useTelegram";
 
@@ -45,7 +45,7 @@ const StatCard: React.FC<StatCardProps> = ({ label, value, unit, icon, accent, l
                         <div className="h-8 w-24 bg-slate-700/50 rounded animate-pulse" />
                     ) : (
                         <p className={`text-2xl font-black font-mono ${accent}`}>
-                            {typeof value === "number" ? value.toLocaleString() : value}
+                            {typeof value === "number" ? Math.round(value).toLocaleString() : value}
                             {unit && <span className="text-sm font-normal text-slate-400 mr-1">{unit}</span>}
                         </p>
                     )}
@@ -117,6 +117,9 @@ const DashboardPage: React.FC = () => {
     } = useDashboard();
 
     const { triggerReport, loading: telegramLoading, errors: telegramErrors } = useTelegram();
+    const { toast } = useToast();
+    const showSuccess = (msg: string) => toast({ title: msg });
+    const showError = (msg: string) => toast({ title: msg, variant: "destructive" });
 
     // ── Date filter state ──────────────────────────────────────────────────
     const [startDate, setStartDate] = useState("");
@@ -134,12 +137,12 @@ const DashboardPage: React.FC = () => {
 
     const handleFilter = () => {
         if (!startDate && !endDate) {
-            toast.error("يرجى إدخال تاريخ واحد على الأقل");
+            showError("يرجى إدخال تاريخ واحد على الأقل");
             return;
         }
 
         if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
-            toast.error("تاريخ البداية يجب أن يكون قبل تاريخ النهاية");
+            showError("تاريخ البداية يجب أن يكون قبل تاريخ النهاية");
             return;
         }
 
@@ -181,7 +184,7 @@ const DashboardPage: React.FC = () => {
 
     const handleSendTelegram = async () => {
         if (!telegramPhone.trim()) {
-            toast.error("يرجى إدخال رقم الهاتف");
+            showError("يرجى إدخال رقم الهاتف");
             return;
         }
 
@@ -199,13 +202,13 @@ const DashboardPage: React.FC = () => {
             const result = await triggerReport(payload);
 
             if (result.type.endsWith('/fulfilled')) {
-                toast.success("✅ تم إرسال التقرير بنجاح!");
+                showSuccess("✅ تم إرسال التقرير بنجاح!");
                 setTelegramPhone("");
             } else if (result.type.endsWith('/rejected')) {
-                toast.error(`❌ ${telegramErrors.triggerReport || 'فشل إرسال التقرير'}`);
+                showError(`❌ ${telegramErrors.triggerReport || 'فشل إرسال التقرير'}`);
             }
         } catch (err) {
-            toast.error("حدث خطأ أثناء إرسال التقرير");
+            showError("حدث خطأ أثناء إرسال التقرير");
         } finally {
             setIsSending(false);
         }
@@ -486,3 +489,4 @@ const DashboardPage: React.FC = () => {
 };
 
 export default DashboardPage;
+

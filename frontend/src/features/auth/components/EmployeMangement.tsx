@@ -2,7 +2,7 @@ import { useEffect, useCallback } from "react";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { toast } from "react-toastify";
+import { useToast } from "../../../hooks/use-toast";
 import {
     UserPlus,
     Users,
@@ -70,6 +70,10 @@ export default function EmployeeManagement() {
         error,
     } = useAuth();
 
+    const { toast } = useToast();
+    const showSuccess = (msg: string) => toast({ title: msg });
+    const showError = (msg: string) => toast({ title: msg, variant: "destructive" });
+
     const {
         register,
         handleSubmit,
@@ -96,12 +100,12 @@ export default function EmployeeManagement() {
         });
 
         if (result.meta?.requestStatus === "fulfilled") {
-            toast.success("تم تسجيل الموظف الجديد بنجاح!");
+            showSuccess("تم تسجيل الموظف الجديد بنجاح!");
             reset();
             fetchEmployees();
         } else {
             const msg = typeof result.payload === "string" ? result.payload : "خطأ غير معروف";
-            toast.error(`فشل تسجيل الموظف: ${msg}`);
+            showError(`فشل تسجيل الموظف: ${msg}`);
         }
     };
 
@@ -111,10 +115,10 @@ export default function EmployeeManagement() {
         const result = await deactivateEmployee(id);
 
         if (result.meta?.requestStatus === "fulfilled") {
-            toast.success(`تم إيقاف حساب ${empName} بنجاح`);
+            showSuccess(`تم إيقاف حساب ${empName} بنجاح`);
         } else {
             const msg = typeof result.payload === "string" ? result.payload : "حدث خطأ أثناء محاولة تعطيل الحساب";
-            toast.error(msg);
+            showError(msg);
         }
     };
 

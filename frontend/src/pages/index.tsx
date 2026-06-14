@@ -1,11 +1,11 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import {
     ShoppingCart, Package, FileText, BarChart3,
     Receipt, Users, Megaphone, LayoutGrid
 } from 'lucide-react';
 import Login from '../features/auth/components/Login';
 import EmployeeManagement from '../features/auth/components/EmployeMangement';
-import CategoryManagement from '../features/category/components/CategoryManagement';
+// import CategoryManagement from '../features/category/components/CategoryManagement';
 import ProductManagement from '../features/products/components/ProductManagement';
 import { useAuth } from '../features/auth/hooks/useAuth';
 import SalesInvoices from "../features/sales/components/SalesInvoices";
@@ -36,7 +36,6 @@ const tabIcons: Record<string, React.ReactNode> = {
 export default function Home() {
     const { isAuthenticated, userRole } = useAuth();
     const [activeTab, setActiveTab] = useState('sales');
-    const [isInitialized, setIsInitialized] = useState(false);
 
     // ── 1. قائمة كل التبويبات المتاحة ──
     const allTabs = useMemo(() => [
@@ -61,16 +60,10 @@ export default function Home() {
         return allTabs.filter((tab) => hasTabAccess(tab.value, userRole || ""));
     }, [allTabs, userRole]);
 
-    // ── 3. إصلاح حماية التبويب النشط عند تغيير الدور ──
-    useEffect(() => {
-        if (!isInitialized) {
-            setIsInitialized(true);
-            return;
-        }
-        if (activeTab && !hasTabAccess(activeTab, userRole || "")) {
-            setActiveTab("sales");
-        }
-    }, [userRole, isInitialized]);
+    const safeActiveTab = useMemo(
+        () => (visibleTabs.some((tab) => tab.value === activeTab) ? activeTab : 'sales'),
+        [visibleTabs, activeTab]
+    );
 
     // ── Auth gate ─────────────────────────────────────────────────────────────
     if (!isAuthenticated) return <Login />;
@@ -109,18 +102,19 @@ export default function Home() {
 
                 {/* Tab Content */}
                 <div className="mt-6 focus-visible:outline-none focus-visible:ring-0">
-                    {activeTab === 'sales' && <SalesInterface />}
-                    {activeTab === 'products' && <ProductManagement />}
-                    {activeTab === 'categories' && <CategoryManagement />}
-                    {activeTab === 'sales-invoices' && <SalesInvoices />}
-                    {activeTab === 'return-invoices' && <ReturnInterface />}
-                    {activeTab === 'return-approval' && <ApprovalReturn />}
-                    {activeTab === 'invoices' && <PurchaseInvoices />}
-                    {activeTab === 'employees' && <EmployeeManagement />}
-                    {activeTab === 'marketing' && <Markting />}
-                    {activeTab === 'dashboard' && <Dashboard />}
+                    {safeActiveTab === 'sales' && <SalesInterface />}
+                    {safeActiveTab === 'products' && <ProductManagement />}
+                    {/* {safeActiveTab === 'categories' && <CategoryManagement />} */}
+                    {safeActiveTab === 'sales-invoices' && <SalesInvoices />}
+                    {safeActiveTab === 'return-invoices' && <ReturnInterface />}
+                    {safeActiveTab === 'return-approval' && <ApprovalReturn />}
+                    {safeActiveTab === 'invoices' && <PurchaseInvoices />}
+                    {safeActiveTab === 'employees' && <EmployeeManagement />}
+                    {safeActiveTab === 'marketing' && <Markting />}
+                    {safeActiveTab === 'dashboard' && <Dashboard />}
                 </div>
-            </div>
+            </div>                    {/* {activeTab === 'categories' && <CategoryManagement />} */}
+
         </div>
     );
 }

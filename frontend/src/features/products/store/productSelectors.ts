@@ -9,13 +9,19 @@ export const selectProductsError = (state: RootState) => state.products.error;
 // تم الإصلاح: تصفية المنتجات ذات المخزون المنخفض (أكبر من 0 وأقل من 5 قطع) لتطابق كود الـ Component تماماً
 export const selectLowStockProducts = createSelector(
     [selectAllProducts],
-    (products) => products.filter(product => product.stock > 0 && product.stock < 5)
+    (products) => products.filter(product => {
+        const s = Number(product.stock || 0);
+        return s === 1;
+    })
 );
 
 // تصفية المنتجات التي نفذت تماماً من المخزن
 export const selectOutOfStockProducts = createSelector(
     [selectAllProducts],
-    (products) => products.filter(product => product.stock === 0)
+    (products) => products.filter(product => {
+        const s = Number(product.stock || 0);
+        return s === 0;
+    })
 );
 
 export const selectproductById = (state: RootState, productId: string) => {

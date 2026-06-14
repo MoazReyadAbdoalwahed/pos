@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { Barcode } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/Card";
@@ -19,6 +19,17 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ barcodeRef, disabled, o
     const { register, handleSubmit, reset, setFocus } = useForm<BarcodeForm>({
         defaultValues: { barcode: "" },
     });
+
+    // Re-focus the barcode input when the scanner mounts or tab becomes active
+    useEffect(() => {
+        const timer = window.setTimeout(() => {
+            if (!disabled) {
+                setFocus("barcode");
+                barcodeRef.current?.focus();
+            }
+        }, 50);
+        return () => window.clearTimeout(timer);
+    }, [barcodeRef, disabled, setFocus]);
 
     // Wire the external ref to the RHF-registered input
     const { ref: rhfRef, ...barcodeReg } = register("barcode");
@@ -43,9 +54,8 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ barcodeRef, disabled, o
                 <form onSubmit={handleSubmit(onValid)} className="flex gap-3">
                     <Input
                         {...barcodeReg}
-                        ref={(el) => {
+                        ref={(el: HTMLInputElement | null) => {
                             rhfRef(el);
-                            // @ts-expect-error - assigning mutable ref
                             barcodeRef.current = el;
                         }}
                         autoFocus

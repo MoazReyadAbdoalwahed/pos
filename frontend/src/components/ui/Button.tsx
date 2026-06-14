@@ -5,7 +5,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     children?: ReactNode;
 
     /** Visual variant of the button */
-    variant?: 'primary' | 'secondary' | 'danger' | 'text' | 'admin';
+    variant?: 'primary' | 'secondary' | 'danger' | 'text' | 'admin' | 'outline';
 
     /** Button size */
     size?: 'sm' | 'md' | 'lg';
@@ -72,6 +72,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
             danger: 'bg-red-600 hover:bg-red-800 border border-red-500/30 text-red-300 hover:text-white',
             text: 'text-slate-400 hover:text-white',
             admin: 'bg-linear-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white shadow-lg',
+            outline: 'bg-transparent border border-slate-700 text-slate-200 hover:bg-slate-800 shadow-none',
         };
 
         // Combine classes

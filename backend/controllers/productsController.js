@@ -1,4 +1,5 @@
 import Product from '../models/productsModel.js';
+import PurchaseInvoice from '../models/purchaseModel.js';
 import mongoose from 'mongoose';
 
 // 1. إنشاء منتج جديد
@@ -44,6 +45,29 @@ const createProduct = async (req, res) => {
         // دمج الفئة وعرض الاسم
         const populatedProduct = await Product.findById(newProduct._id).populate('category', 'name');
 
+        // إذا كان هناك رصيد افتتاحي، نُنشئ فاتورة مشتريات مرجعية دون زيادة المخزون ثانيةً
+        if (initialStockNumber > 0) {
+            const invoiceItem = {
+                productId: newProduct._id,
+                name: newProduct.name,
+                sku: newProduct.sku || '',
+                quantity: initialStockNumber,
+                puchasePrice: Number(purchasePrice),
+                suggestedSalePrice: Number(salePrice),
+                suggestedWholesalePrice: Number(wholesalePrice),
+            };
+
+            const purchaseInvoice = new PurchaseInvoice({
+                purchaseInvoiceNumber: supplierInvoiceNumber ? supplierInvoiceNumber.toString() : `INIT-${Date.now()}`,
+                supplierName: supplierName || 'توريد افتتاحي',
+                purchaseDate: supplierInvoiceDate ? new Date(supplierInvoiceDate) : new Date(),
+                items: [invoiceItem],
+                totalAmount: initialStockNumber * Number(purchasePrice),
+            });
+
+            await purchaseInvoice.save();
+        }
+
         // تم التعديل لإرسال المنتج بعد الدمج مباشرة للعميل
         res.status(201).json({ message: 'Product created successfully', product: populatedProduct });
     } catch (error) {
@@ -83,7 +107,33 @@ const getProductById = async (req, res) => {
     }
 };
 
-// 4. تعديل منتج بواسطة الـ ID
+// 4. البحث عن المنتجات بواسطة اسم المنتج أو الكود
+const searchProducts = async (req, res) => {
+    try {
+        const query = String(req.query.q || '').trim();
+        if (!query) {
+            return res.status(400).json({ message: 'Search query is required.' });
+        }
+
+        const regex = new RegExp(query, 'i');
+        const products = await Product.find({
+            $or: [
+                { name: regex },
+                { sku: regex }
+            ]
+        })
+            .populate('category', 'name')
+            .limit(50)
+            .sort({ createdAt: -1 });
+
+        res.status(200).json({ message: 'Products search results', products });
+    } catch (error) {
+        console.error('Error searching products:', error);
+        res.status(500).json({ message: 'Internal server error', error: error.message });
+    }
+};
+
+// 5. تعديل منتج بواسطة الـ ID
 // Update a product by ID (النسخة المرنة والمصلحة)
 const updateProduct = async (req, res) => {
     try {
@@ -107,7 +157,6 @@ const updateProduct = async (req, res) => {
         if (wholesalePrice !== undefined) updatedData.wholesalePrice = Number(wholesalePrice);
         if (purchasePrice !== undefined) updatedData.purchasePrice = Number(purchasePrice);
         if (salePrice !== undefined) updatedData.salePrice = Number(salePrice);
-        if (stock !== undefined) updatedData.stock = Number(stock);
         if (sku !== undefined) updatedData.sku = sku.trim();
 
         // الحقول المرتبطة بالفواتير والموردين (تحدث فقط إذا تم إرسالها)
@@ -154,4 +203,4 @@ const deleteProduct = async (req, res) => {
     }
 };
 
-export { createProduct, getProducts, getProductById, updateProduct, deleteProduct };
+export { createProduct, getProducts, getProductById, searchProducts, updateProduct, deleteProduct };

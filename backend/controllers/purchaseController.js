@@ -40,7 +40,6 @@ const createPurchaseInvoice = async (req, res) => {
             }
 
             if (!product) {
-                // إنشاء منتج جديد تلقائياً إذا كان غير موجود في النظام
                 const salePrice = item.suggestedSalePrice ? Number(item.suggestedSalePrice) : Number(item.puchasePrice);
                 const wholesalePrice = item.suggestedWholesalePrice ? Number(item.suggestedWholesalePrice) : 0;
                 const newProduct = new Product({
@@ -61,16 +60,24 @@ const createPurchaseInvoice = async (req, res) => {
             item.productId = product._id;
             item.sku = product.sku;
 
-            product.stock += Number(item.quantity);
-            product.purchasePrice = Number(item.puchasePrice);
-            if (item.suggestedSalePrice !== undefined && item.suggestedSalePrice !== null) {
-                product.salePrice = Number(item.suggestedSalePrice);
-            }
-            if (item.suggestedWholesalePrice !== undefined && item.suggestedWholesalePrice !== null) {
-                product.wholesalePrice = Number(item.suggestedWholesalePrice);
+            const updatePayload = {
+                $inc: { stock: Number(item.quantity) },
+                $set: {
+                    purchasePrice: Number(item.puchasePrice),
+                    salePrice: item.suggestedSalePrice !== undefined && item.suggestedSalePrice !== null ? Number(item.suggestedSalePrice) : product.salePrice,
+                    wholesalePrice: item.suggestedWholesalePrice !== undefined && item.suggestedWholesalePrice !== null ? Number(item.suggestedWholesalePrice) : product.wholesalePrice,
+                }
+            };
+
+            const updatedProduct = await Product.findByIdAndUpdate(product._id, updatePayload, {
+                new: true,
+                runValidators: true
+            });
+
+            if (!updatedProduct) {
+                return res.status(500).json({ message: `Failed to update stock for product ${product._id}` });
             }
 
-            await product.save();
             processedItems.push(item);
         }
 
@@ -136,15 +143,76 @@ const updatePurchaseInvoice = async (req, res) => {
         if (items) {
             // 1. إرجاع المخزن كما كان قبل الفاتورة
             for (const oldItem of purchaseInvoice.items) {
-                await Product.findByIdAndUpdate(oldItem.productId, { $inc: { stock: -oldItem.quantity } });
+                if (mongoose.Types.ObjectId.isValid(oldItem.productId)) {
+                    await Product.findByIdAndUpdate(oldItem.productId, { $inc: { stock: -oldItem.quantity } });
+                }
             }
 
-            // 2. تطبيق الكميات الجديدة
+            const processedItems = [];
+
+            // 2. تطبيق الكميات والأسعار الجديدة لكل منتج
             for (const newItem of items) {
-                await Product.findByIdAndUpdate(newItem.productId, { $inc: { stock: newItem.quantity } });
+                let product = null;
+
+                if (newItem.productId && mongoose.Types.ObjectId.isValid(newItem.productId)) {
+                    product = await Product.findById(newItem.productId);
+                }
+
+                const itemSku = newItem.sku || newItem.barcode || newItem.name?.replace(/\s+/g, '-').toUpperCase();
+                if (!product && itemSku) {
+                    product = await Product.findOne({ sku: itemSku });
+                }
+
+                if (!product) {
+                    const salePrice = newItem.suggestedSalePrice !== undefined && newItem.suggestedSalePrice !== null
+                        ? Number(newItem.suggestedSalePrice)
+                        : Number(newItem.puchasePrice);
+                    const wholesalePrice = newItem.suggestedWholesalePrice !== undefined && newItem.suggestedWholesalePrice !== null
+                        ? Number(newItem.suggestedWholesalePrice)
+                        : 0;
+
+                    const newProduct = new Product({
+                        name: newItem.name,
+                        sku: itemSku,
+                        purchasePrice: Number(newItem.puchasePrice),
+                        salePrice,
+                        wholesalePrice,
+                        stock: 0,
+                    });
+                    product = await newProduct.save();
+                }
+
+                const updatePayload = {
+                    $inc: { stock: Number(newItem.quantity) },
+                    $set: {
+                        purchasePrice: Number(newItem.puchasePrice),
+                        salePrice: newItem.suggestedSalePrice !== undefined && newItem.suggestedSalePrice !== null
+                            ? Number(newItem.suggestedSalePrice)
+                            : product.salePrice,
+                        wholesalePrice: newItem.suggestedWholesalePrice !== undefined && newItem.suggestedWholesalePrice !== null
+                            ? Number(newItem.suggestedWholesalePrice)
+                            : product.wholesalePrice,
+                    }
+                };
+
+                const updatedProduct = await Product.findByIdAndUpdate(product._id, updatePayload, {
+                    new: true,
+                    runValidators: true
+                });
+
+                if (!updatedProduct) {
+                    return res.status(500).json({ message: `Failed to update stock for product ${product._id}` });
+                }
+
+                processedItems.push({
+                    ...newItem,
+                    productId: updatedProduct._id,
+                    sku: updatedProduct.sku || itemSku
+                });
             }
-            purchaseInvoice.items = items;
-            purchaseInvoice.totalAmount = items.reduce((total, item) => total + (Number(item.puchasePrice) * Number(item.quantity)), 0);
+
+            purchaseInvoice.items = processedItems;
+            purchaseInvoice.totalAmount = processedItems.reduce((total, item) => total + (Number(item.puchasePrice) * Number(item.quantity)), 0);
         }
 
         if (purchaseInvoiceNumber) purchaseInvoice.purchaseInvoiceNumber = purchaseInvoiceNumber;

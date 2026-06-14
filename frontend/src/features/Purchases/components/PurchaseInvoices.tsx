@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm, useFieldArray, useWatch, type Resolver, type SubmitHandler } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { toast } from "react-toastify";
+import { useToast } from "../../../hooks/use-toast";
+import { useProducts } from "../../products/hook/useProducts";
+import type { Product } from "../../../types/product";
 
 // استيراد أيقونات Lucide
 import {
@@ -46,6 +48,9 @@ type PurchaseFormValues = z.infer<typeof PurchaseInvoiceSchema>;
 
 // ─── 2. Main Component ────────────────────────────────────────────────────────
 const PurchaseInvoices = () => {
+    const { toast } = useToast();
+    const showSuccess = (msg: string) => toast({ title: msg });
+    const showError = (msg: string) => toast({ title: msg, variant: "destructive" });
     // استخدام الهوك المطور الموحد لإدارة المشتريات والموردين وحالات التحميل
     const {
         purchases: invoices,
@@ -58,8 +63,15 @@ const PurchaseInvoices = () => {
         clearSelectedAndErrors
     } = usePurchases();
 
+    const {
+        selectedAllProduct: products,
+        loading: productsLoading,
+        fetchAll: fetchProducts,
+    } = useProducts();
+
     // Local UI States
     const [selectedInvoice, setSelectedInvoice] = useState<Purchase | null>(null);
+    const [productSearchQuery, setProductSearchQuery] = useState("");
     const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = useState(false);
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [isEditMode, setIsEditMode] = useState(false);
@@ -88,6 +100,7 @@ const PurchaseInvoices = () => {
         handleSubmit,
         reset,
         clearErrors,
+        setValue,
         formState: { errors, isSubmitting }
     } = useForm<PurchaseFormValues>({
         mode: "onBlur",
@@ -115,8 +128,44 @@ const PurchaseInvoices = () => {
             purchaseDate: new Date().toISOString().slice(0, 16),
             items: [{ productId: "temp-id", name: "", barcode: "", quantity: 1, puchasePrice: 0, suggestedSalePrice: 0, suggestedWholesalePrice: 0 }]
         });
+        setProductSearchQuery("");
         setIsEditMode(false);
         setEditingInvoiceId(null);
+    };
+
+    const productSuggestions = useMemo(() => {
+        const query = productSearchQuery.trim().toLowerCase();
+        if (!query) return [];
+        return products
+            .filter((product) =>
+                product.name.toLowerCase().includes(query) ||
+                product.sku?.toLowerCase().includes(query)
+            )
+            .slice(0, 8);
+    }, [products, productSearchQuery]);
+
+    const handleAddProductRow = (product: Product) => {
+        const existingIndex = watchedItems.findIndex((item) => item.productId === product.id);
+        if (existingIndex !== -1) {
+            const currentQuantity = Number(watchedItems[existingIndex].quantity) || 0;
+            setValue(`items.${existingIndex}.quantity`, currentQuantity + 1);
+            setValue(`items.${existingIndex}.puchasePrice`, product.purchasePrice || 0);
+            setValue(`items.${existingIndex}.name`, product.name);
+            setValue(`items.${existingIndex}.barcode`, product.sku || "");
+            setProductSearchQuery("");
+            return;
+        }
+
+        append({
+            productId: product.id,
+            name: product.name,
+            barcode: product.sku || "",
+            quantity: 1,
+            puchasePrice: product.purchasePrice || 0,
+            suggestedSalePrice: product.salePrice || 0,
+            suggestedWholesalePrice: product.wholesalePrice || 0
+        });
+        setProductSearchQuery("");
     };
 
     const openEditDialog = (invoice: Purchase) => {
@@ -151,12 +200,12 @@ const PurchaseInvoices = () => {
         try {
             const result = await removePurchase(invoiceId);
             if (result.meta.requestStatus === "fulfilled") {
-                toast.success("تم حذف فاتورة الشراء بنجاح");
+                showSuccess("تم حذف فاتورة الشراء بنجاح");
             } else {
-                toast.error((result.payload as string) || "فشل حذف فاتورة الشراء");
+                showError((result.payload as string) || "فشل حذف فاتورة الشراء");
             }
         } catch (err) {
-            toast.error("حدث خطأ أثناء حذف فاتورة الشراء");
+            showError("حدث خطأ أثناء حذف فاتورة الشراء");
             console.error(err);
         }
     };
@@ -164,13 +213,14 @@ const PurchaseInvoices = () => {
     // جلب البيانات عند التحميل لأول مرة
     useEffect(() => {
         fetchAllPurchases();
+        fetchProducts();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // تصفية وعرض الأخطاء المرتدة من خادم Redux
     useEffect(() => {
         if (error) {
-            toast.error(error);
+            showError(error);
             clearSelectedAndErrors();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -219,16 +269,17 @@ const PurchaseInvoices = () => {
                 : await createPurchase(formattedPayload);
 
             if (result.meta.requestStatus === "fulfilled") {
-                toast.success(isEditMode
+                await fetchProducts();
+                showSuccess(isEditMode
                     ? `تم تحديث فاتورة الشراء رقم ${data.purchaseInvoiceNumber} بنجاح`
                     : `تم إدراج فاتورة الشراء رقم ${data.purchaseInvoiceNumber} بنجاح إلى المخازن`
                 );
                 handleCloseFormDialog();
             } else {
-                toast.error((result.payload as string) || (isEditMode ? "فشل تحديث فاتورة المشتريات" : "فشل قيد فاتورة المشتريات"));
+                showError((result.payload as string) || (isEditMode ? "فشل تحديث فاتورة المشتريات" : "فشل قيد فاتورة المشتريات"));
             }
         } catch (err) {
-            toast.error("حدث خطأ أثناء معالجة البيانات المدخلة");
+            showError("حدث خطأ أثناء معالجة البيانات المدخلة");
             console.error(err);
         }
     };
@@ -307,19 +358,53 @@ const PurchaseInvoices = () => {
 
                                     {/* Invoice Items Sub-form List */}
                                     <div className="space-y-3">
-                                        <div className="flex justify-between items-center">
-                                            <label className="text-sm font-black text-indigo-400">حصر السلع المستلمة</label>
-                                            <Button
-                                                type="button"
-                                                variant="secondary"
-                                                size="sm"
-                                                className="border border-slate-700 text-slate-200 hover:text-white font-bold"
-                                                onClick={() => append({ productId: "temp-id", name: "", barcode: "", quantity: 1, puchasePrice: 0, suggestedSalePrice: 0, suggestedWholesalePrice: 0 })}
-                                                disabled={isSubmitting}
-                                            >
-                                                <Plus className="w-3.5 h-3.5 ml-1.5 text-indigo-400" />
-                                                بند منتج جديد
-                                            </Button>
+                                        <div className="space-y-2">
+                                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                                <label className="text-sm font-black text-indigo-400">حصر السلع المستلمة</label>
+                                                <Button
+                                                    type="button"
+                                                    variant="secondary"
+                                                    size="sm"
+                                                    className="border border-slate-700 text-slate-200 hover:text-white font-bold"
+                                                    onClick={() => append({ productId: "temp-id", name: "", barcode: "", quantity: 1, puchasePrice: 0, suggestedSalePrice: 0, suggestedWholesalePrice: 0 })}
+                                                    disabled={isSubmitting}
+                                                >
+                                                    <Plus className="w-3.5 h-3.5 ml-1.5 text-indigo-400" />
+                                                    بند منتج جديد
+                                                </Button>
+                                            </div>
+
+                                            <div className="relative">
+                                                <Input
+                                                    type="text"
+                                                    value={productSearchQuery}
+                                                    onChange={(e) => setProductSearchQuery(e.target.value)}
+                                                    placeholder="ابحث باسم المنتج أو الكود..."
+                                                    className="bg-[#0f172a] border-slate-700 text-slate-200 placeholder-slate-500"
+                                                    disabled={productsLoading || isSubmitting}
+                                                />
+                                                {productSuggestions.length > 0 && (
+                                                    <div className="absolute z-20 mt-1 w-full rounded-2xl border border-slate-700 bg-[#020617] shadow-xl">
+                                                        {productSuggestions.map((product) => (
+                                                            <button
+                                                                key={product.id}
+                                                                type="button"
+                                                                onClick={() => handleAddProductRow(product)}
+                                                                className="w-full text-left px-4 py-3 hover:bg-slate-800 transition-colors"
+                                                            >
+                                                                <div className="flex justify-between gap-3">
+                                                                    <span className="font-medium text-slate-100">{product.name}</span>
+                                                                    <span className="text-xs text-slate-500">{product.sku}</span>
+                                                                </div>
+                                                                <div className="flex justify-between gap-3 text-xs text-slate-500">
+                                                                    <span>رصيد حالي: {product.stock}</span>
+                                                                    <span>سعر شراء: {product.purchasePrice.toLocaleString()} ج.م</span>
+                                                                </div>
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
 
                                         <div className="space-y-3">
@@ -403,7 +488,7 @@ const PurchaseInvoices = () => {
                                     <div className="bg-[#0f172a] p-4 rounded-xl border border-slate-800 flex justify-between items-center">
                                         <span className="text-xs font-bold text-slate-400">فاتورة حسابية مستحقة للمورد:</span>
                                         <span className="text-lg font-black text-emerald-400 font-mono">
-                                            {calculateTotal().toLocaleString(undefined, { minimumFractionDigits: 2 })} ج.م
+                                            {Math.round(calculateTotal()).toLocaleString()} ج.م
                                         </span>
                                     </div>
 
@@ -518,7 +603,7 @@ const PurchaseInvoices = () => {
 
                                             <div className="flex flex-col items-end gap-2 text-left">
                                                 <div className="text-base font-black text-amber-500 font-mono">
-                                                    {(invoice.totalAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} ج.م
+                                                    {Math.round(invoice.totalAmount || 0).toLocaleString()} ج.م
                                                 </div>
 
                                                 <div className="flex flex-wrap gap-2 justify-end">
@@ -630,3 +715,4 @@ const PurchaseInvoices = () => {
 };
 
 export default PurchaseInvoices;
+

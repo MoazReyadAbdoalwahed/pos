@@ -25,7 +25,9 @@ const createCategory = async (req, res) => {
         });
 
         await category.save();
-        res.status(201).json({ message: 'Category created successfully', category });
+        const savedCategory = category.toObject();
+        savedCategory.id = savedCategory._id.toString();
+        res.status(201).json({ message: 'Category created successfully', category: savedCategory });
     } catch (error) {
         console.error('Error creating category:', error);
         res.status(500).json({ message: 'Failed to create category', error: error.message });
@@ -36,13 +38,10 @@ const createCategory = async (req, res) => {
 const getAllCategories = async (req, res) => {
     try {
         const categories = await Category.find().sort({ createdAt: -1 });
-        if (categories.length === 0) {
-            return res.status(404).json({ message: 'No categories found' });
-        }
         res.status(200).json({ message: 'Categories fetched successfully', categories });
     } catch (error) {
         console.error('Error fetching categories:', error);
-        res.status(500).json({ message: 'failed to fetch categories', error: error.message });
+        res.status(500).json({ message: 'Failed to fetch categories', error: error.message });
     }
 };
 
@@ -92,7 +91,7 @@ const updateCategory = async (req, res) => {
             return res.status(404).json({ message: 'Category not found' });
         }
         res.status(200).json({
-            message: 'Category updated successfully', ategory: {
+            message: 'Category updated successfully', category: {
                 ...updatedCategory.toObject(),
                 id: updatedCategory._id.toString(),
             }

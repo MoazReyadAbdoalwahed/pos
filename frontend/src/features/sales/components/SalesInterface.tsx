@@ -1,11 +1,11 @@
-import React, { useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Loader2, Printer, Receipt, RotateCcw, Search } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/Card";
 import { Badge } from "../../../components/ui/Badge";
 import { Input } from "../../../components/ui/Input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../../../components/ui/Dialog";
 import Button from "../../../components/ui/Button";
-import { toast } from "react-toastify";
+import { useToast } from "../../../hooks/use-toast";
 import { useAppSelector, useAppDispatch } from "../../../hooks/storeHooks";
 import { selectSales } from "../store/salesSelectors";
 import type { Sale } from "../../../types/sales";
@@ -15,6 +15,7 @@ import { useApproval } from "../../RerurnApproval/hook/useApproval";
 
 import { useSalesInterface } from "../hook/Usesalesinterface";
 import BarcodeScanner from "../pos/Barcodescanner";
+import ThermalReceipt from "../pos/ThermalReceipt";
 import ProductCard from "../pos/Productcard";
 import CartItemRow from "../pos/Cartitemrow";
 import TelegramSection from "../pos/Telegramsection";
@@ -33,7 +34,7 @@ const SalesInterface: React.FC = () => {
         isBusy,
         isSendingTelegram,
         barcodeRef,
-        // printRef,
+        printRef,
         handleAddToCart,
         handleBarcodeSubmit,
         handleRemoveFromCart,
@@ -45,12 +46,18 @@ const SalesInterface: React.FC = () => {
         filteredProducts,
     } = useSalesInterface();
 
+    const { toast } = useToast();
+    const showSuccess = (msg: string) => toast({ title: msg });
+    const showError = (msg: string) => toast({ title: msg, variant: "destructive" });
+
     const { submitReturnRequest } = useApproval();
 
     const [invoiceSearchQuery, setInvoiceSearchQuery] = useState("");
     const [searchAttempted, setSearchAttempted] = useState(false);
     const [selectedInvoice, setSelectedInvoice] = useState<Sale | null>(null);
     const [returnReason, setReturnReason] = useState("");
+    const invoiceInputRef = useRef<HTMLInputElement>(null);
+    const reasonInputRef = useRef<HTMLTextAreaElement>(null);
     const [returnPriceType, setReturnPriceType] = useState<"sale" | "wholesale" | "custom">("sale");
     const [returnQuantity, setReturnQuantity] = useState(1);
     const [customReturnPrice, setCustomReturnPrice] = useState<number | null>(null);
@@ -87,17 +94,19 @@ const SalesInterface: React.FC = () => {
         const query = invoiceSearchQuery.trim();
 
         if (!query) {
-            toast.error("يرجى إدخال رقم الفاتورة للبحث");
+            showError("يرجى إدخال رقم الفاتورة للبحث");
             setSearchAttempted(true);
             setSelectedInvoice(null);
+            invoiceInputRef.current?.focus();
             return;
         }
 
         setSearchAttempted(true);
 
         if (searchResults.length === 0) {
-            toast.error("لم يتم العثور على فاتورة بهذا الرقم");
+            showError("لم يتم العثور على فاتورة بهذا الرقم");
             setSelectedInvoice(null);
+            invoiceInputRef.current?.focus();
             return;
         }
 
@@ -106,13 +115,13 @@ const SalesInterface: React.FC = () => {
         setReturnReason("");
         setReturnQuantity(1);
         setReturnPriceType("sale");
-        toast.success(`تم العثور على فاتورة ${foundInvoice.invoiceNumber}`);
+        showSuccess(`تم العثور على فاتورة ${foundInvoice.invoiceNumber}`);
     };
 
     const handleSendReturnRequest = async () => {
         if (!selectedInvoice) return;
         if (!returnReason.trim()) {
-            toast.error("يرجى إدخال سبب الإرجاع");
+            showError("يرجى إدخال سبب الإرجاع");
             return;
         }
 
@@ -143,7 +152,7 @@ const SalesInterface: React.FC = () => {
                 reason: returnReason.trim()
             });
 
-            toast.success(`تم إرسال طلب الإرجاع للفاتورة ${selectedInvoice.invoiceNumber}`);
+            showSuccess(`تم إرسال طلب الإرجاع للفاتورة ${selectedInvoice.invoiceNumber}`);
             setIsInvoiceSearchOpen(false);
             setSelectedInvoice(null);
             setInvoiceSearchQuery("");
@@ -154,7 +163,7 @@ const SalesInterface: React.FC = () => {
             setCustomReturnPrice(null);
         } catch (error) {
             console.error(error);
-            toast.error("فشل إرسال طلب الإرجاع");
+            showError("فشل إرسال طلب الإرجاع");
         }
     };
 
@@ -166,7 +175,15 @@ const SalesInterface: React.FC = () => {
         setReturnQuantity(1);
         setReturnPriceType("sale");
         setCustomReturnPrice(null);
+
+        setTimeout(() => invoiceInputRef.current?.focus(), 0);
     };
+
+    useEffect(() => {
+        if (isInvoiceSearchOpen) {
+            setTimeout(() => invoiceInputRef.current?.focus(), 0);
+        }
+    }, [isInvoiceSearchOpen]);
 
     return (
         <div className="space-y-6 p-6 min-h-screen bg-[#0f172a] text-slate-100" dir="rtl">
@@ -318,6 +335,11 @@ const SalesInterface: React.FC = () => {
                 </div>
             </div>
 
+            {/* ── Hidden Thermal Receipt for print action ───────────────────── */}
+            <div style={{ position: "absolute", left: -9999, top: -9999, width: 0, height: 0, overflow: "hidden" }} aria-hidden="true">
+                <ThermalReceipt ref={printRef} cart={cart} total={cartTotal} />
+            </div>
+
             {/* ── Return modal ───────────────────────────────────── */}
             <Dialog open={isInvoiceSearchOpen} onOpenChange={setIsInvoiceSearchOpen}>
                 <DialogContent className="max-w-2xl bg-[#1e293b] border-slate-800 text-slate-100">
@@ -380,10 +402,11 @@ const SalesInterface: React.FC = () => {
                             <div className="space-y-4">
                                 <label className="text-sm text-slate-300">سبب الإرجاع</label>
                                 <textarea
+                                    ref={reasonInputRef}
                                     value={returnReason}
                                     onChange={(e) => setReturnReason(e.target.value)}
                                     placeholder="أدخل سبب الإرجاع هنا"
-                                    className="w-full min-h-[100px] rounded-2xl border border-slate-700 bg-[#0f172a] p-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-500 focus:ring-emerald-500"
+                                    className="w-full min-h-25 rounded-2xl border border-slate-700 bg-[#0f172a] p-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-500 focus:ring-emerald-500"
                                 />
                             </div>
 
@@ -400,7 +423,7 @@ const SalesInterface: React.FC = () => {
                                             type="button"
                                             variant={returnPriceType === option.value ? "primary" : "secondary"}
                                             onClick={() => setReturnPriceType(option.value as "sale" | "wholesale" | "custom")}
-                                            className="min-w-[120px]"
+                                            className="min-w-30"
                                         >
                                             {option.label}
                                         </Button>
@@ -458,6 +481,7 @@ const SalesInterface: React.FC = () => {
                     ) : (
                         <form onSubmit={handleInvoiceSearch} className="p-6 space-y-4">
                             <Input
+                                ref={invoiceInputRef}
                                 value={invoiceSearchQuery}
                                 onChange={(e) => setInvoiceSearchQuery(e.target.value)}
                                 placeholder="رقم الفاتورة أو رقم الإيصال"
@@ -495,3 +519,4 @@ const SalesInterface: React.FC = () => {
 };
 
 export default SalesInterface;
+
