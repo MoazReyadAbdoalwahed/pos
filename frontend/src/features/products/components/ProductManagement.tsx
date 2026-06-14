@@ -641,7 +641,7 @@ export default function ProductManagement() {
                             <FormInput
                                 id="name"
                                 label="اسم المنتج *"
-                                placeholder="مثال: طقم حلل تيفال"
+                                placeholder="مثال: فلتر هواء دراجة نارية أو طقم فرامل"
                                 icon={Package}
                                 registration={registerProduct("name")}
                                 error={productErrors.name?.message}
@@ -654,7 +654,7 @@ export default function ProductManagement() {
                                 <FormInput
                                     id="supplierInvoiceNumber"
                                     label="رقم فاتورة المورد"
-                                    placeholder="مثال: PUR-9902"
+                                    placeholder="مثال: PUR-MOTO-001"
                                     icon={FileText}
                                     registration={registerProduct("supplierInvoiceNumber")}
                                     error={productErrors.supplierInvoiceNumber?.message}
@@ -664,7 +664,7 @@ export default function ProductManagement() {
                                 <FormInput
                                     id="supplierName"
                                     label="الشركة الموردة"
-                                    placeholder="مثال: المورد الجديد"
+                                    placeholder="مثال: اسم المورد (شركة قطع غيار)"
                                     icon={Truck}
                                     registration={registerProduct("supplierName")}
                                     error={productErrors.supplierName?.message}
@@ -751,7 +751,7 @@ export default function ProductManagement() {
                                     </button>
                                     <FormInput
                                         id="sku"
-                                        placeholder="امسح بالليزر أو توليد تلقائي"
+                                        placeholder="امسح الباركود أو أنشئ تلقائياً (مثال: SP-MOTO-001)"
                                         icon={Tag}
                                         registration={registerProduct("sku")}
                                         error={productErrors.sku?.message}

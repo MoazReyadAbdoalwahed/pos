@@ -38,11 +38,11 @@ const PinIcon = () => (
     </svg>
 );
 
-const FacebookIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="#1877F2" style={{ flexShrink: 0 }}>
-        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-    </svg>
-);
+// const FacebookIcon = () => (
+//     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="#1877F2" style={{ flexShrink: 0 }}>
+//         <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+//     </svg>
+// );
 
 const Divider = () => (
     <div style={{ borderTop: "1px dashed #bbb", margin: "5px 0" }} />
@@ -51,12 +51,10 @@ const Divider = () => (
 const ThermalReceipt = React.forwardRef<HTMLDivElement, ThermalReceiptProps>(
     ({ cart = [], total = 0, invoice = null, userName = null, formatDateTime }, ref) => {
 
-        const shopName = "معرض الفجر للأدوات المنزلية";
-        const phone1 = "01093000465";
-        const phone2 = "01069115309";
-        const phone3 = "01024676845";
-        const address = "الروضة – شارع السنترال – خلف السيد الفكهاني";
-        const facebookUrl = "https://www.facebook.com/share/1UT1ZGev6Y/?mibextid=wwXIfr";
+        const shopName = "الكابتن لقطع غيار الموتوسيكلات";
+        const phone1 = "01004812109";
+        const address = "الروضة – امام مسجد الرحمة ";
+        // const facebookUrl = "https://www.facebook.com/share/1UT1ZGev6Y/?mibextid=wwXIfr";
         const [generatedReceiptId] = React.useState(() => `INV-${Date.now()}`);
         const receiptId = invoice?.invoiceNumber ?? generatedReceiptId;
 
@@ -178,14 +176,14 @@ const ThermalReceipt = React.forwardRef<HTMLDivElement, ThermalReceiptProps>(
                             <span style={{ letterSpacing: "1px", fontWeight: "bold" }}>{phone1}</span>
                         </div>
 
-                        <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11px" }}>
+                        {/* <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11px" }}>
                             <WhatsAppIcon />
                             <span style={{ letterSpacing: "1px", fontWeight: "bold" }}>{phone2}</span>
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11px" }}>
                             <WhatsAppIcon />
                             <span style={{ letterSpacing: "1px", fontWeight: "bold" }}>{phone3}</span>
-                        </div>
+                        </div> */}
                     </div>
 
                     <div style={{ fontSize: "9px", letterSpacing: "4px", color: "#999", marginTop: "7px" }}>
@@ -302,7 +300,7 @@ const ThermalReceipt = React.forwardRef<HTMLDivElement, ThermalReceiptProps>(
                 <Divider />
 
                 {/* ══ FACEBOOK QR ══ */}
-                <div style={{ textAlign: "center", margin: "6px 0" }}>
+                {/* <div style={{ textAlign: "center", margin: "6px 0" }}>
                     <div style={{
                         display: "flex",
                         alignItems: "center",
@@ -314,11 +312,11 @@ const ThermalReceipt = React.forwardRef<HTMLDivElement, ThermalReceiptProps>(
                     }}>
                         <FacebookIcon />
                         <span>تابعونا على فيسبوك</span>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "center" }}>
+                    </div> */}
+                {/* <div style={{ display: "flex", justifyContent: "center" }}>
                         <QRCode value={facebookUrl} size={50} bgColor="#ffffff" fgColor="#000000" level="M" />
                     </div>
-                </div>
+                </div> */}
 
                 <Divider />
 

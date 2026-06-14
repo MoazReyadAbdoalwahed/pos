@@ -1,4 +1,4 @@
-﻿import React, { useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import { useReactToPrint } from "react-to-print";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../../components/ui/Dialog";
 import Button from "../../../components/ui/Button";
@@ -183,34 +183,14 @@ const ProductLabelModal: React.FC<ProductLabelModalProps> = ({ product }) => {
                                             page-break-after: avoid !important;
                                             break-after: avoid !important;
                                         }
-                                        /* Ensure SVG barcode fits the label and is centered */
+                                        /* Constrain barcode SVG to label width to avoid clipping and center it */
                                         .print-page svg {
-                                            max-width: calc(100% - 8mm) !important;
+                                            max-width: calc(100% - 6mm) !important;
                                             width: 100% !important;
                                             height: auto !important;
                                             display: block !important;
                                             margin-left: auto !important;
                                             margin-right: auto !important;
-                                        }
-                                        /* Make the product name and printed code more readable */
-                                        .print-product-name {
-                                            font-size: 22px !important;
-                                            font-weight: 800 !important;
-                                            text-align: center !important;
-                                            width: 100% !important;
-                                            overflow: hidden !important;
-                                            text-overflow: ellipsis !important;
-                                            white-space: nowrap !important;
-                                        }
-                                        .print-barcode-text {
-                                            font-size: 18px !important;
-                                            font-weight: 700 !important;
-                                            font-family: monospace !important;
-                                            text-align: center !important;
-                                            width: 100% !important;
-                                            overflow: hidden !important;
-                                            text-overflow: ellipsis !important;
-                                            white-space: nowrap !important;
                                         }
                                     }
                                 `}</style>
@@ -236,7 +216,19 @@ const ProductLabelModal: React.FC<ProductLabelModalProps> = ({ product }) => {
                                         }}
                                     >
                                         {/* اسم المنتج */}
-                                        <div className="print-product-name">
+                                        <div
+                                            style={{
+                                                fontSize: "8.5px",
+                                                fontWeight: "700",
+                                                textAlign: "center",
+                                                width: "100%",
+                                                whiteSpace: "nowrap",
+                                                overflow: "hidden",
+                                                textOverflow: "ellipsis",
+                                                lineHeight: "1.2",
+                                                letterSpacing: "0.02em",
+                                            }}
+                                        >
                                             {product.name}
                                         </div>
 
@@ -260,22 +252,36 @@ const ProductLabelModal: React.FC<ProductLabelModalProps> = ({ product }) => {
                                                     fgColor="#000000"
                                                 />
                                             ) : (
-                                                <div style={{ width: '100%', overflow: 'hidden', display: 'flex', justifyContent: 'center', alignItems: 'center', paddingLeft: '2mm', paddingRight: '10px' }}>
+                                                <div style={{ width: '100%', overflow: 'hidden', display: 'flex', justifyContent: 'center', alignItems: 'center', paddingLeft: '1.5mm', paddingRight: '1.5mm' }}>
                                                     <BarcodeReact
                                                         value={barcodeValue}
                                                         format="CODE128"
                                                         lineColor="#000000"
-                                                        width={2.2}
-                                                        height={48}
+                                                        width={1.8}
+                                                        height={42}
                                                         displayValue={false}
-                                                        margin={8}
+                                                        margin={6}
                                                         background="#ffffff"
                                                         style={{ maxWidth: '100%', height: 'auto', display: 'block' }}
                                                     />
                                                 </div>
                                             )}
 
-                                            <div className="print-barcode-text" style={{ marginTop: '1.5mm' }}>
+                                            <div
+                                                style={{
+                                                    fontSize: "7px",
+                                                    fontWeight: "600",
+                                                    fontFamily: "monospace",
+                                                    textAlign: "center",
+                                                    color: "#000",
+                                                    marginTop: "1mm",
+                                                    letterSpacing: "0.05em",
+                                                    width: "100%",
+                                                    overflow: "hidden",
+                                                    whiteSpace: "nowrap",
+                                                    textOverflow: "ellipsis",
+                                                }}
+                                            >
                                                 {labelValue}
                                             </div>
                                         </div>

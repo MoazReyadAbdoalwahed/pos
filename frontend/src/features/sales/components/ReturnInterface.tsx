@@ -16,6 +16,7 @@ import { useToast } from "../../../hooks/use-toast";
 import { useAppDispatch } from "../../../hooks/storeHooks"; // مسار الـ Hooks الموحد بمشروعك
 import { useAuth } from "../../../features/auth/hooks/useAuth";
 import { useProducts } from "../../products/hook/useProducts"; // استدعاء هوك المنتجات لجلب المنتجات والـ sku
+import { normalizeSku } from "../../../lib/utils";
 import { createReturnSale } from "../store/thunksales";
 import type { ReturnSaleFormData } from "../../../types/sales";
 
@@ -61,11 +62,11 @@ const ReturnInterface: React.FC = () => {
     const [returnReason, setReturnReason] = useState("");
 
     const tryAddScannedProduct = (rawBarcode: string) => {
-        const query = rawBarcode.trim();
+        const query = normalizeSku(rawBarcode);
         if (!query || !products?.length) return false;
 
         const product = products.find(
-            (p) => p.sku?.toLowerCase() === query.toLowerCase()
+            (p) => normalizeSku(p.sku || p._id) === query
         ) as ReturnProduct | undefined;
 
         if (!product) return false;

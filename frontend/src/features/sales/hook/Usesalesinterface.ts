@@ -6,6 +6,7 @@ import { useAppDispatch, useAppSelector } from "../../../hooks/storeHooks";
 import { getAllproducts } from "../../../features/products/store/Thunkproducts";
 import { selectAllProducts, selectProductsLoading } from "../../../features/products/store/productSelectors";
 import type { Product } from "../../../types/product";
+import { normalizeSku } from "../../../lib/utils";
 
 export interface CartItem {
     productId: string;
@@ -88,7 +89,8 @@ export function useSalesInterface() {
 
     const handleBarcodeSubmit = useCallback(
         (barcode: string, reset: () => void) => {
-            const product = products.find((p) => p.sku === barcode);
+            const normalizedBarcode = normalizeSku(barcode);
+            const product = products.find((p) => normalizeSku(p.sku || p._id) === normalizedBarcode);
             if (product) {
                 handleAddToCart(product);
                 reset();

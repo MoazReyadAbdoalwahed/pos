@@ -10,8 +10,8 @@ import FormInput from "../../../components/ui/form/FormInput";
 import Button from "../../../components/ui/Button";
 
 const LoginSchema = z.object({
-    username: z.string().min(2, "Username is required"),
-    password: z.string().min(6, "Password is required"),
+    username: z.string().min(2, "اسم المستخدم مطلوب"),
+    password: z.string().min(6, "كلمة المرور مطلوبة"),
 });
 
 type LoginInput = z.infer<typeof LoginSchema>;
@@ -38,7 +38,7 @@ export default function Login() {
 
     useEffect(() => {
         if (isAuthenticated) {
-            showSuccess("Login successful!");
+            showSuccess("تم تسجيل الدخول بنجاح!");
             switch (userRole) {
                 case "admin": navigate("/admin/dashboard"); break;
                 case "manager": navigate("/manager/dashboard"); break;
@@ -47,7 +47,7 @@ export default function Login() {
             }
         }
         if (error) {
-            showError("Login Error", error);
+            showError("خطأ في تسجيل الدخول", error);
         }
     }, [isAuthenticated, userRole, error, navigate, showSuccess, showError]);
 
@@ -80,8 +80,8 @@ export default function Login() {
 
                     {/* Header */}
                     <div className="text-center mb-6">
-                        <h1 className="text-3xl font-bold text-white mb-2">Akram Shop</h1>
-                        <p className="text-slate-300 text-sm">POS System</p>
+                        <h1 className="text-3xl font-bold text-white mb-2">نظام نقاط بيع - متجر قطع غيار موتوسيكلات</h1>
+                        <p className="text-slate-300 text-sm">نظام نقاط بيع للمخازن وقطع الغيار</p>
                     </div>
 
                     {/* Mode Tabs */}
@@ -96,7 +96,7 @@ export default function Login() {
                             iconPosition="left"
                             className="flex-1"
                         >
-                            Staff Login
+                            دخول الموظفين
                         </Button>
                         <Button
                             type="button"
@@ -108,7 +108,7 @@ export default function Login() {
                             iconPosition="left"
                             className="flex-1"
                         >
-                            Admin Login
+                            دخول المدير
                         </Button>
                     </div>
 
@@ -122,8 +122,8 @@ export default function Login() {
                         <FormInput
                             id="username"
                             type="text"
-                            label="Username"
-                            placeholder="Enter your username"
+                            label="اسم المستخدم"
+                            placeholder="اسم المستخدم أو الكود"
                             autoComplete="username"
                             disabled={loading}
                             icon={UserIcon}
@@ -136,8 +136,8 @@ export default function Login() {
                         <FormInput
                             id="password"
                             type="password"
-                            label="Password"
-                            placeholder="Enter your password"
+                            label="كلمة المرور"
+                            placeholder="كلمة المرور"
                             autoComplete="current-password"
                             disabled={loading}
                             icon={Lock}
@@ -155,7 +155,7 @@ export default function Login() {
                             fullWidth
                             className="mt-6 transform hover:scale-105 active:scale-95 disabled:scale-100"
                         >
-                            {loading ? "Logging in..." : isAdmin ? "Admin Login" : "Login"}
+                            {loading ? "جاري تسجيل الدخول..." : isAdmin ? "دخول المدير" : "دخول"}
                         </Button>
                     </form>
                 </div>

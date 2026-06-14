@@ -330,7 +330,7 @@ const PurchaseInvoices = () => {
                                         <FormInput
                                             id="purchaseInvoiceNumber"
                                             label="رقم فاتورة المورد *"
-                                            placeholder="مثال: PUR-9902"
+                                            placeholder="مثال: PUR-MOTO-001"
                                             icon={Receipt}
                                             registration={register("purchaseInvoiceNumber")}
                                             error={errors.purchaseInvoiceNumber?.message}
@@ -339,7 +339,7 @@ const PurchaseInvoices = () => {
                                         <FormInput
                                             id="supplierName"
                                             label="الشركة الموردة *"
-                                            placeholder="اسم المورد أو المصنع"
+                                            placeholder="مثال: اسم المورد (شركة قطع غيار)"
                                             icon={Building}
                                             registration={register("supplierName")}
                                             error={errors.supplierName?.message}
@@ -413,7 +413,7 @@ const PurchaseInvoices = () => {
                                                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-3">
                                                         <FormInput
                                                             label="اسم الصنف المعرف"
-                                                            placeholder="طقم عشاء، مقلاة..."
+                                                            placeholder="فلتر هواء، شمعة إشعال، طقم فرامل..."
                                                             icon={Tag}
                                                             registration={register(`items.${index}.name` as const)}
                                                             error={errors.items?.[index]?.name?.message}
