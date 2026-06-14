@@ -5,7 +5,7 @@ import { Types } from "mongoose";
 // ════════════════════════════════════════════════════════════════════════
 
 export type ReturnStatus = "pending" | "approved" | "rejected";
-export type PriceType = "sale" | "wholesale";
+export type PriceType = "sale" | "wholesale" | "custom";
 export type InvoiceType = "sale" | "return";
 
 // ════════════════════════════════════════════════════════════════════════

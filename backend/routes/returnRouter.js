@@ -9,30 +9,30 @@ import {
 } from '../controllers/returnController.js';
 
 import userAuth from '../middlewares/userAuth.js';
-import adminOnly from '../middlewares/adminOnly.js';
+import { adminOrManagerOnly } from '../middlewares/adminOnly.js';
 
 const router = express.Router();
 
-// 🔍 جلب تفاصيل فاتورة للبحث عنها (متاح للكاشير والأدمن)
-router.get('/details/:invoiceId', userAuth, getInvoiceDetails);
+// 🔍 جلب تفاصيل فاتورة للبحث عنها (أدمن أو مدير)
+router.get('/details/:invoiceId', userAuth, adminOrManagerOnly, getInvoiceDetails);
 
-// 📝 إنشاء طلب مرتجع معلق (متاح للكاشير)
-router.post('/request', userAuth, createReturnRequest);
+// 📝 إنشاء طلب مرتجع معلق (أدمن أو مدير)
+router.post('/request', userAuth, adminOrManagerOnly, createReturnRequest);
 
-// ✅ موافقة الأدمن على طلب المرتجع (تحديث المخزن وإنشاء فاتورة سالبة في جدول Sale)
-router.put('/approve/:id', userAuth, adminOnly, approveReturn); // تم تحويلها لـ PUT وتصحيح المعرف لـ :id
+// ✅ موافقة الأدمن أو المدير على طلب المرتجع (تحديث المخزن وإنشاء فاتورة سالبة في جدول Sale)
+router.put('/approve/:id', userAuth, adminOrManagerOnly, approveReturn); // تم تحويلها لـ PUT وتصحيح المعرف لـ :id
 
-// ❌ رفض طلب المرتجع من قبل الإدارة
-router.put('/reject/:id', userAuth, adminOnly, rejectReturn); // تم تحويلها لـ PUT وتصحيح المعرف لـ :id
+// ❌ رفض طلب المرتجع من قبل الإدارة أو المدير
+router.put('/reject/:id', userAuth, adminOrManagerOnly, rejectReturn); // تم تحويلها لـ PUT وتصحيح المعرف لـ :id
 
-// ⏳ جلب الطلبات المعلقة (أدمن فقط)
-router.get('/pending', userAuth, adminOnly, getPendingReturns);
+// ⏳ جلب الطلبات المعلقة (أدمن أو مدير)
+router.get('/pending', userAuth, adminOrManagerOnly, getPendingReturns);
 
 // 📜 جلب سجل طلبات المرتجعات بالكامل
-router.get('/history', userAuth, getReturnHistory);
+router.get('/history', userAuth, adminOrManagerOnly, getReturnHistory);
 
-// 🗑️ حذف طلب مرتجع (أدمن فقط) - للصيانة والتنظيف
-router.delete('/:id', userAuth, adminOnly, async (req, res) => {
+// 🗑️ حذف طلب مرتجع (أدمن أو مدير) - للصيانة والتنظيف
+router.delete('/:id', userAuth, adminOrManagerOnly, async (req, res) => {
     try {
         const ReturnRequest = (await import('../models/retunModel.js')).default;
         const { id } = req.params;

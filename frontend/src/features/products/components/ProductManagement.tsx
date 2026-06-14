@@ -24,10 +24,10 @@ import type { CreateCategoryRequest, UpdateCategoryRequest } from "../../../type
 
 const ProductSchema = z.object({
     name: z.string().min(2, "اسم المنتج يجب أن لا يقل عن حرفين"),
-    wholesalePrice: z.coerce.number().min(0, "يجب أن يكون الرقم موجباً"),
-    purchasePrice: z.coerce.number().min(0, "يجب أن يكون الرقم موجباً"),
-    salePrice: z.coerce.number().min(0, "سعر البيع مطلوب"),
-    initialStock: z.coerce.number().min(0, "الكمية يجب أن تكون موجبة"),
+    wholesalePrice: z.coerce.number().int("يجب أن يكون الرقم عددًا صحيحًا").min(0, "يجب أن يكون الرقم موجباً"),
+    purchasePrice: z.coerce.number().int("يجب أن يكون الرقم عددًا صحيحًا").min(0, "يجب أن يكون الرقم موجباً"),
+    salePrice: z.coerce.number().int("يجب أن يكون الرقم عددًا صحيحًا").min(0, "سعر البيع مطلوب"),
+    initialStock: z.coerce.number().int("يجب أن يكون الرقم عددًا صحيحًا").min(0, "الكمية يجب أن تكون موجبة"),
     sku: z.string().default(""),
     category: z.string().default(""),
     supplierName: z.string().default(""),
@@ -115,10 +115,12 @@ export default function ProductManagement() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         resolver: zodResolver(ProductSchema) as any,
         defaultValues: {
-            name: "", wholesalePrice: 0, purchasePrice: 0,
-            salePrice: 0, initialStock: 0, sku: "",
-            category: "", supplierName: "",
-            supplierInvoiceNumber: "", supplierInvoiceDate: "",
+            name: "",
+            sku: "",
+            category: "",
+            supplierName: "",
+            supplierInvoiceNumber: "",
+            supplierInvoiceDate: "",
         },
     });
 
@@ -167,10 +169,12 @@ export default function ProductManagement() {
     const openProductCreateDialog = () => {
         clearProductErrors();
         resetProduct({
-            name: "", wholesalePrice: 0, purchasePrice: 0,
-            salePrice: 0, initialStock: 0, sku: "",
-            category: "", supplierName: "",
-            supplierInvoiceNumber: "", supplierInvoiceDate: "",
+            name: "",
+            sku: "",
+            category: "",
+            supplierName: "",
+            supplierInvoiceNumber: "",
+            supplierInvoiceDate: "",
         });
         setProductDialogMode("create");
     };
@@ -182,10 +186,10 @@ export default function ProductManagement() {
 
         resetProduct({
             name: product.name || "",
-            wholesalePrice: product.wholesalePrice ?? 0,
-            purchasePrice: product.purchasePrice ?? 0,
-            salePrice: product.salePrice ?? 0,
-            initialStock: product.stock ?? 0,
+            wholesalePrice: Math.round(product.wholesalePrice ?? 0),
+            purchasePrice: Math.round(product.purchasePrice ?? 0),
+            salePrice: Math.round(product.salePrice ?? 0),
+            initialStock: Math.max(0, Math.round(product.stock ?? 0)),
             sku: product.sku || "",
             category: typeof product.category === 'string' ? product.category : "",
             supplierName: product.supplierName || "",
@@ -674,11 +678,12 @@ export default function ProductManagement() {
                                 <FormInput
                                     id="purchasePrice"
                                     label="سعر الشراء (ج.م)"
-                                    placeholder="0.00"
+                                    placeholder=""
                                     icon={DollarSign}
                                     type="number"
-                                    step="0.01"
-                                    registration={registerProduct("purchasePrice")}
+                                    step="1"
+                                    min={0}
+                                    registration={registerProduct("purchasePrice", { valueAsNumber: true })}
                                     error={productErrors.purchasePrice?.message}
                                     disabled={productSubmitting}
                                     isRtl
@@ -686,11 +691,12 @@ export default function ProductManagement() {
                                 <FormInput
                                     id="salePrice"
                                     label="سعر البيع القطاعي (ج.م) *"
-                                    placeholder="0.00"
+                                    placeholder=""
                                     icon={DollarSign}
                                     type="number"
-                                    step="0.01"
-                                    registration={registerProduct("salePrice")}
+                                    step="1"
+                                    min={0}
+                                    registration={registerProduct("salePrice", { valueAsNumber: true })}
                                     error={productErrors.salePrice?.message}
                                     disabled={productSubmitting}
                                     isRtl
@@ -702,10 +708,12 @@ export default function ProductManagement() {
                                 <FormInput
                                     id="initialStock"
                                     label={isProductEditing ? "الكمية الحالية (غير قابلة للتعديل هنا)" : "الكمية الابتدائية"}
-                                    placeholder="0"
+                                    placeholder=""
                                     icon={Hash}
                                     type="number"
-                                    registration={registerProduct("initialStock")}
+                                    step="1"
+                                    min={0}
+                                    registration={registerProduct("initialStock", { valueAsNumber: true })}
                                     error={productErrors.initialStock?.message}
                                     disabled={productSubmitting || isProductEditing}
                                     isRtl
@@ -713,11 +721,12 @@ export default function ProductManagement() {
                                 <FormInput
                                     id="wholesalePrice"
                                     label="سعر الجملة (ج.م)"
-                                    placeholder="0.00"
+                                    placeholder=""
                                     icon={DollarSign}
                                     type="number"
-                                    step="0.01"
-                                    registration={registerProduct("wholesalePrice")}
+                                    step="1"
+                                    min={0}
+                                    registration={registerProduct("wholesalePrice", { valueAsNumber: true })}
                                     error={productErrors.wholesalePrice?.message}
                                     disabled={productSubmitting}
                                     isRtl

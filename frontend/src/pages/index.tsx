@@ -41,7 +41,6 @@ export default function Home() {
     const allTabs = useMemo(() => [
         { value: 'sales', label: 'السلة' },
         { value: 'products', label: 'إدارة المنتجات' },
-        { value: 'categories', label: 'الفئات' },
         { value: 'sales-invoices', label: 'فواتير المبيعات' },
         { value: 'return-invoices', label: 'مرتجعات' },
         { value: 'return-approval', label: 'موافقة مرتجعات' },

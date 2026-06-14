@@ -6,7 +6,7 @@ import { sendLowStockAlert } from '../services/Telegrambotservice .js'; // تم 
 // 🛒 1. إنشاء فاتورة مبيعات (يغطي: قطاعي، جملة، يدوي ومحمي محاسبياً)
 const checkInvoice = async (req, res) => {
     try {
-        const { items, priceType = 'sale', paymentMethod = 'cash', cashierId } = req.body;
+        const { items, priceType = 'sale', paymentMethod = 'cash', cashierId, cashierName } = req.body;
 
         if (!items || !items.length) {
             return res.status(400).json({ message: 'لم يتم تزويد أي أصناف للبيع' });
@@ -91,7 +91,8 @@ const checkInvoice = async (req, res) => {
             netProfit,
             paymentMethod,
             invoiceType: "sales",
-            cashierId: validCashierId // يمنع الكراش إذا كان الـ ID نصياً غير متوافق
+            cashierId: validCashierId, // يمنع الكراش إذا كان الـ ID نصياً غير متوافق
+            cashierName: cashierName || null // حفظ اسم الكاشير
         });
 
         await newInvoice.save();
@@ -110,7 +111,7 @@ const checkInvoice = async (req, res) => {
 // 🔄 2. معالجة مرتجع الفواتير الآمن والمربوط بالفاتورة الأصلية
 const returnInvoice = async (req, res) => {
     try {
-        const { originalInvoiceNumber, itemsToReturn, cashierId, returnType } = req.body;
+        const { originalInvoiceNumber, itemsToReturn, cashierId, cashierName, returnType } = req.body;
 
         if (!originalInvoiceNumber || !itemsToReturn || !itemsToReturn.length) {
             return res.status(400).json({ message: 'رقم الفاتورة الأصلية والأصناف المراد إرجاعها مطلوبة' });
@@ -190,7 +191,8 @@ const returnInvoice = async (req, res) => {
             totalCost: -totalReturnCost,
             netProfit: netProfit,
             invoiceType: 'return',
-            cashierId: validCashierId
+            cashierId: validCashierId,
+            cashierName: cashierName || null // حفظ اسم الكاشير
         });
 
         await newReturnInvoice.save();

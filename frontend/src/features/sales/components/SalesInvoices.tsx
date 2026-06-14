@@ -51,6 +51,7 @@ interface SalesInvoice {
     totalAmount?: number;
     createdAt: string;
     invoiceType?: 'sales' | 'return';
+    cashierName?: string | null;
 }
 
 interface SalesInvoicesProps {
@@ -273,9 +274,7 @@ const SalesInvoices: React.FC<SalesInvoicesProps> = ({
                                                                 : "text-base font-black text-emerald-400 font-mono"
                                                         }
                                                     >
-                                                        {(invoice.totalAmount ?? 0).toLocaleString(undefined, {
-                                                            minimumFractionDigits: 2,
-                                                        })}{" "}
+                                                        {Math.round(invoice.totalAmount ?? 0).toLocaleString()}{" "}
                                                         ج.م
                                                     </div>
                                                     <span
@@ -363,7 +362,9 @@ const SalesInvoices: React.FC<SalesInvoicesProps> = ({
                                     <span className="text-[11px] text-slate-500 block mb-0.5">
                                         المسؤول القائم
                                     </span>
-                                    <p className="font-bold text-xs text-slate-200">اكرم بصلة</p>
+                                    <p className="font-bold text-xs text-slate-200">
+                                        {selectedInvoice.cashierName || 'غير محدد'}
+                                    </p>
                                 </div>
                             </div>
 
@@ -399,13 +400,13 @@ const SalesInvoices: React.FC<SalesInvoicesProps> = ({
                                                         {item.name}
                                                     </TableCell>
                                                     <TableCell className="text-center font-mono text-xs text-slate-300">
-                                                        {item.salesPrice.toFixed(2)} ج.م
+                                                        {Math.round(item.salesPrice || 0).toLocaleString()} ج.م
                                                     </TableCell>
                                                     <TableCell className="text-center font-mono text-xs text-indigo-400 font-bold">
                                                         {item.quantity}
                                                     </TableCell>
                                                     <TableCell className="text-left font-mono text-xs text-slate-200 font-semibold">
-                                                        {item.totalItemPrice.toFixed(2)} ج.م
+                                                        {Math.round(item.totalItemPrice || 0).toLocaleString()} ج.م
                                                     </TableCell>
                                                 </TableRow>
                                             ))}
@@ -444,9 +445,7 @@ const SalesInvoices: React.FC<SalesInvoicesProps> = ({
                                                 : "text-xl font-black text-emerald-400 font-mono"
                                         }
                                     >
-                                        {(selectedInvoice.totalAmount ?? 0).toLocaleString(undefined, {
-                                            minimumFractionDigits: 2,
-                                        })}{" "}
+                                        {Math.round(selectedInvoice.totalAmount ?? 0).toLocaleString()}{" "}
                                         ج.م
                                     </span>
                                 </div>

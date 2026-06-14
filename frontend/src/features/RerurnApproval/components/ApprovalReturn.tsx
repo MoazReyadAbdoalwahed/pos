@@ -358,7 +358,7 @@ const RejectDialog: React.FC<RejectDialogProps> = ({
 const ItemsTable: React.FC<{ items: ReturnRequest["items"] }> = ({ items }) => (
     <div className="rounded-lg border border-slate-700/50 overflow-hidden">
         <Table>
-            <TableHeader>
+            {/* <TableHeader>
                 <TableRow>
                     <TableHead className="text-right">المنتج</TableHead>
                     <TableHead className="text-center">الكمية</TableHead>
@@ -366,20 +366,24 @@ const ItemsTable: React.FC<{ items: ReturnRequest["items"] }> = ({ items }) => (
                     <TableHead className="text-center">النوع</TableHead>
                     <TableHead className="text-left">الإجمالي</TableHead>
                 </TableRow>
-            </TableHeader>
+            </TableHeader> */}
             <TableBody>
                 {items.map((item, idx) => (
                     <TableRow key={idx}>
                         <TableCell className="font-medium text-slate-200 text-right">
-                            {item.name}
+                            <span className="block text-xs text-slate-500 mb-1">المنتج</span>
+                            <span>{item.name}</span>
                         </TableCell>
                         <TableCell className="text-center text-slate-300">
-                            {item.quantity}
+                            <span className="block text-xs text-slate-500 mb-1">الكمية</span>
+                            <span>{item.quantity}</span>
                         </TableCell>
                         <TableCell className="text-center text-slate-300" dir="ltr">
-                            {item.price.toLocaleString()}
+                            <span className="block text-xs text-slate-500 mb-1">السعر</span>
+                            <span>{item.price.toLocaleString()}</span>
                         </TableCell>
                         <TableCell className="text-center">
+                            <span className="block text-xs text-slate-500 mb-1">النوع</span>
                             {item.priceType && item.priceType !== "sale" ? (
                                 <Badge
                                     variant="secondary"
@@ -388,11 +392,12 @@ const ItemsTable: React.FC<{ items: ReturnRequest["items"] }> = ({ items }) => (
                                     {item.priceType === "wholesale" ? "جملة" : "مخصص"}
                                 </Badge>
                             ) : (
-                                <span className="text-slate-500 text-xs">عادي</span>
+                                <span className="text-slate-300">عادي</span>
                             )}
                         </TableCell>
                         <TableCell className="text-left text-indigo-400 font-semibold" dir="ltr">
-                            {item.totalItemPrice.toLocaleString()} ر.س
+                            <span className="block text-xs text-slate-500 mb-1">الإجمالي</span>
+                            <span>{item.totalItemPrice.toLocaleString()} ر.س</span>
                         </TableCell>
                     </TableRow>
                 ))}
@@ -535,12 +540,12 @@ const ReturnApprovalComponent: React.FC = () => {
                         className={loading ? "[&_svg]:animate-spin" : ""}
                         title="تحديث"
                     />
-                    <div className="flex items-center gap-2 bg-slate-800/50 border border-slate-700/50 rounded-lg px-3 py-2">
-                        <Filter className="w-4 h-4 text-slate-400 shrink-0" />
+                    <div className="flex items-center gap-2 bg-slate-900/80 border border-slate-700/80 rounded-xl px-3 py-2 min-w-[210px] shadow-sm">
+                        <Filter className="w-4 h-4 text-slate-300 shrink-0" />
                         <select
                             value={filter}
                             onChange={(e) => setFilter(e.target.value as FilterValue)}
-                            className="bg-transparent text-sm text-slate-300 outline-none cursor-pointer"
+                            className="flex-1 min-w-0 rounded-lg border border-slate-700/80 bg-slate-950/90 px-3 py-2 text-sm text-slate-100 outline-none transition duration-200 ease-in-out focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 cursor-pointer"
                         >
                             <option value="pending">قيد الانتظار</option>
                             <option value="all">الكل</option>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import Button from "../../../components/ui/Button";
 import type { CartItem as CartItemType } from "../hook/Usesalesinterface";
@@ -18,41 +18,50 @@ const QuantityInput: React.FC<{
     onChange: (qty: number) => void;
 }> = ({ quantity, onChange }) => {
     const [display, setDisplay] = useState(String(quantity));
-
-    useEffect(() => {
-        setDisplay(String(quantity));
-    }, [quantity]);
+    const [dirty, setDirty] = useState(false);
+    const displayValue = dirty ? display : String(quantity);
 
     return (
         <div className="flex items-center gap-1 bg-[#1e293b] p-1 rounded-lg border border-slate-700">
             <button
                 type="button"
                 className="w-7 h-7 text-slate-400 hover:text-white hover:bg-slate-800 rounded flex items-center justify-center transition-colors"
-                onClick={() => onChange(Math.max(1, quantity - 1))}
+                onClick={() => {
+                    const next = Math.max(1, quantity - 1);
+                    setDisplay(String(next));
+                    setDirty(false);
+                    onChange(next);
+                }}
             >
                 <Minus className="w-3 h-3" />
             </button>
             <input
                 type="number"
                 min="1"
-                value={display}
+                value={displayValue}
                 onFocus={(e) => e.target.select()}
                 onChange={(e) => {
                     setDisplay(e.target.value);
+                    setDirty(true);
                     const n = parseInt(e.target.value, 10);
                     if (!isNaN(n) && n >= 1) onChange(n);
                 }}
                 onBlur={() => {
                     const n = parseInt(display, 10);
-                    if (isNaN(n) || n < 1) { setDisplay("1"); onChange(1); }
-                    else setDisplay(String(n));
+                    if (isNaN(n) || n < 1) { setDisplay("1"); setDirty(false); onChange(1); }
+                    else { setDisplay(String(n)); setDirty(false); }
                 }}
                 className="w-10 h-7 text-center bg-transparent text-sm font-bold text-white font-mono border-none outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
             <button
                 type="button"
                 className="w-7 h-7 text-slate-400 hover:text-white hover:bg-slate-800 rounded flex items-center justify-center transition-colors"
-                onClick={() => onChange(quantity + 1)}
+                onClick={() => {
+                    const next = quantity + 1;
+                    setDisplay(String(next));
+                    setDirty(false);
+                    onChange(next);
+                }}
             >
                 <Plus className="w-3 h-3" />
             </button>
@@ -68,6 +77,16 @@ const CartItemRow: React.FC<CartItemRowProps> = ({
     onCustomPriceChange,
 }) => {
     const isCustom = item.priceType === "custom";
+    const [customPriceDisplay, setCustomPriceDisplay] = useState(
+        isCustom && item.activePrice > 0 ? String(item.activePrice) : ""
+    );
+    const [customDirty, setCustomDirty] = useState(false);
+    const customDisplayValue = customDirty
+        ? customPriceDisplay
+        : isCustom && item.activePrice > 0
+            ? String(item.activePrice)
+            : "";
+
     const subtotal = (item.activePrice * item.quantity).toLocaleString();
 
     return (
@@ -79,9 +98,18 @@ const CartItemRow: React.FC<CartItemRowProps> = ({
 
                     <select
                         value={item.priceType}
-                        onChange={(e) =>
-                            onPriceTypeChange(item.productId, e.target.value as "sale" | "wholesale" | "custom")
-                        }
+                        onChange={(e) => {
+                            const next = e.target.value as "sale" | "wholesale" | "custom";
+                            onPriceTypeChange(item.productId, next);
+                            if (next !== "custom") {
+                                setCustomPriceDisplay("");
+                                setCustomDirty(false);
+                            } else {
+                                // start editing with current activePrice
+                                setCustomPriceDisplay(item.activePrice > 0 ? String(item.activePrice) : "");
+                                setCustomDirty(false);
+                            }
+                        }}
                         className="mt-1 w-full bg-[#1e293b] text-xs text-indigo-300 rounded border border-slate-700 px-2 py-1 outline-none cursor-pointer focus:border-indigo-500"
                     >
                         <option value="sale">قطاعي ({item.salePrice} ج.م)</option>
@@ -92,23 +120,42 @@ const CartItemRow: React.FC<CartItemRowProps> = ({
                     {isCustom && (
                         <div className="flex items-center gap-2 mt-1">
                             <input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={item.activePrice === 0 ? "" : item.activePrice}
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                value={customDisplayValue}
                                 placeholder="أدخل السعر"
                                 onChange={(e) => {
-                                    const v = e.target.value.trim();
-                                    const n = parseFloat(v);
-                                    onCustomPriceChange(item.productId, v === "" ? 0 : isNaN(n) ? 0 : n);
-                                }}
-                                onBlur={(e) => {
-                                    const n = parseFloat(e.target.value);
-                                    if (!e.target.value.trim() || n === 0 || isNaN(n)) {
-                                        onPriceTypeChange(item.productId, "sale");
+                                    const v = e.target.value;
+                                    if (/^\d*$/.test(v)) {
+                                        setCustomPriceDisplay(v);
+                                        setCustomDirty(true);
+                                        const n = v === "" ? 0 : parseInt(v, 10);
+                                        onCustomPriceChange(item.productId, isNaN(n) ? 0 : n);
                                     }
                                 }}
-                                className="flex-1 h-7 bg-[#0f172a] border border-amber-600 text-amber-300 text-xs px-2 outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 font-mono rounded"
+                                onBlur={() => {
+                                    const n = customPriceDisplay === "" ? 0 : parseInt(customPriceDisplay, 10);
+                                    if (!customPriceDisplay || n === 0 || isNaN(n)) {
+                                        onPriceTypeChange(item.productId, "sale");
+                                        setCustomDirty(false);
+                                    } else {
+                                        onCustomPriceChange(item.productId, n);
+                                        setCustomDirty(false);
+                                    }
+                                }}
+                                onPaste={(e) => {
+                                    const paste = e.clipboardData.getData("text");
+                                    if (!/^\d+$/.test(paste)) {
+                                        e.preventDefault();
+                                    }
+                                }}
+                                onKeyDown={(e) => {
+                                    if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+                                        e.preventDefault();
+                                    }
+                                }}
+                                className="flex-1 h-7 bg-[#0f172a] border border-amber-600 text-amber-300 text-xs px-2 outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 font-mono rounded appearance-none [MozAppearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             />
                             <span className="text-xs font-mono text-amber-400">ج.م</span>
                         </div>

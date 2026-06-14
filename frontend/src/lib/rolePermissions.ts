@@ -9,7 +9,6 @@ const rolePermissions: Record<string, string[]> = {
     admin: [
         'sales',
         'products',
-        // 'categories',
         'sales-invoices',
         'return-invoices',
         'return-approval',
@@ -28,13 +27,11 @@ const rolePermissions: Record<string, string[]> = {
         'invoices',
         'reports',
         'employees',
-        'dashboard'
+        'marketing'
     ],
     cashier: [
         'sales',
-        'sales-invoices',
-        'return-invoices',
-        'invoices'
+        'sales-invoices'
     ],
 };
 

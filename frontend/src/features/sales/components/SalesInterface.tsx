@@ -6,7 +6,7 @@ import { Input } from "../../../components/ui/Input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../../../components/ui/Dialog";
 import Button from "../../../components/ui/Button";
 import { useToast } from "../../../hooks/use-toast";
-import { useAppSelector, useAppDispatch } from "../../../hooks/storeHooks";
+import { useAppSelector } from "../../../hooks/storeHooks";
 import { selectSales } from "../store/salesSelectors";
 import type { Sale } from "../../../types/sales";
 import { useApproval } from "../../RerurnApproval/hook/useApproval";
@@ -19,6 +19,15 @@ import ThermalReceipt from "../pos/ThermalReceipt";
 import ProductCard from "../pos/Productcard";
 import CartItemRow from "../pos/Cartitemrow";
 import TelegramSection from "../pos/Telegramsection";
+
+type ReturnInvoiceItem = {
+    productId: string;
+    name: string;
+    quantity: number;
+    maxQuantity: number;
+    salePrice: number;
+    wholesalePrice: number;
+};
 
 const SalesInterface: React.FC = () => {
     const {
@@ -47,6 +56,7 @@ const SalesInterface: React.FC = () => {
     } = useSalesInterface();
 
     const { toast } = useToast();
+    const currentUser = useAppSelector(state => state.auth.user);
     const showSuccess = (msg: string) => toast({ title: msg });
     const showError = (msg: string) => toast({ title: msg, variant: "destructive" });
 
@@ -55,11 +65,11 @@ const SalesInterface: React.FC = () => {
     const [invoiceSearchQuery, setInvoiceSearchQuery] = useState("");
     const [searchAttempted, setSearchAttempted] = useState(false);
     const [selectedInvoice, setSelectedInvoice] = useState<Sale | null>(null);
+    const [returnItems, setReturnItems] = useState<ReturnInvoiceItem[]>([]);
     const [returnReason, setReturnReason] = useState("");
     const invoiceInputRef = useRef<HTMLInputElement>(null);
     const reasonInputRef = useRef<HTMLTextAreaElement>(null);
     const [returnPriceType, setReturnPriceType] = useState<"sale" | "wholesale" | "custom">("sale");
-    const [returnQuantity, setReturnQuantity] = useState(1);
     const [customReturnPrice, setCustomReturnPrice] = useState<number | null>(null);
     const sales = useAppSelector(selectSales);
     const searchResults = React.useMemo(
@@ -71,23 +81,24 @@ const SalesInterface: React.FC = () => {
     );
 
     // Calculate refund amount based on price type
-    const calculateRefundAmount = React.useMemo(() => {
-        if (!selectedInvoice) return 0;
-
-        let totalAmount = 0;
-        for (const item of selectedInvoice.items) {
-            let itemPrice = item.salesPrice; // default to sale price
-
-            if (returnPriceType === "wholesale" && item.wholesalePrice) {
-                itemPrice = item.wholesalePrice;
-            } else if (returnPriceType === "custom" && customReturnPrice !== null) {
-                itemPrice = customReturnPrice;
-            }
-
-            totalAmount += itemPrice * item.quantity;
+    const getReturnItemUnitPrice = (item: ReturnInvoiceItem) => {
+        if (returnPriceType === "wholesale" && item.wholesalePrice) {
+            return item.wholesalePrice;
         }
-        return totalAmount;
-    }, [selectedInvoice, returnPriceType, customReturnPrice]);
+        if (returnPriceType === "custom" && customReturnPrice !== null) {
+            return customReturnPrice;
+        }
+        return item.salePrice;
+    };
+
+    const calculateRefundAmount = React.useMemo(() => {
+        if (returnItems.length === 0) return 0;
+
+        return returnItems.reduce((sum, item) => {
+            const itemPrice = getReturnItemUnitPrice(item);
+            return sum + itemPrice * item.quantity;
+        }, 0);
+    }, [returnItems, returnPriceType, customReturnPrice]);
 
     const handleInvoiceSearch = (event?: React.FormEvent) => {
         event?.preventDefault();
@@ -97,6 +108,7 @@ const SalesInterface: React.FC = () => {
             showError("يرجى إدخال رقم الفاتورة للبحث");
             setSearchAttempted(true);
             setSelectedInvoice(null);
+            setReturnItems([]);
             invoiceInputRef.current?.focus();
             return;
         }
@@ -106,44 +118,56 @@ const SalesInterface: React.FC = () => {
         if (searchResults.length === 0) {
             showError("لم يتم العثور على فاتورة بهذا الرقم");
             setSelectedInvoice(null);
+            setReturnItems([]);
             invoiceInputRef.current?.focus();
             return;
         }
 
         const foundInvoice = searchResults[0];
         setSelectedInvoice(foundInvoice);
+        setReturnItems(
+            foundInvoice.items.map((item) => ({
+                productId: String(item.productId),
+                name: item.name,
+                quantity: 1,
+                maxQuantity: item.quantity,
+                salePrice: item.salesPrice,
+                wholesalePrice: item.wholesalePrice || item.salesPrice,
+            }))
+        );
         setReturnReason("");
-        setReturnQuantity(1);
         setReturnPriceType("sale");
         showSuccess(`تم العثور على فاتورة ${foundInvoice.invoiceNumber}`);
     };
 
     const handleSendReturnRequest = async () => {
         if (!selectedInvoice) return;
+        if (returnItems.length === 0) {
+            showError("يرجى اختيار كمية مرتجع واحدة على الأقل");
+            return;
+        }
         if (!returnReason.trim()) {
             showError("يرجى إدخال سبب الإرجاع");
             return;
         }
 
         try {
+            if (returnPriceType === "custom" && (customReturnPrice === null || customReturnPrice <= 0)) {
+                showError("يرجى إدخال سعر مخصص صالح قبل إرسال طلب الإرجاع");
+                return;
+            }
+
             await submitReturnRequest({
                 invoiceId: selectedInvoice._id,
-                items: selectedInvoice.items.map(item => {
-                    let itemPrice = item.salesPrice;
-                    let wholesalePrice = item.wholesalePrice || item.salesPrice;
-
-                    if (returnPriceType === "wholesale" && item.wholesalePrice) {
-                        itemPrice = item.wholesalePrice;
-                    } else if (returnPriceType === "custom" && customReturnPrice !== null) {
-                        itemPrice = customReturnPrice;
-                    }
+                items: returnItems.map((item) => {
+                    const itemPrice = getReturnItemUnitPrice(item);
 
                     return {
                         productId: item.productId,
                         name: item.name,
                         quantity: item.quantity,
-                        salesPrice: itemPrice,
-                        wholesalePrice,
+                        price: itemPrice,
+                        wholesalePrice: item.wholesalePrice,
                         totalItemPrice: item.quantity * itemPrice,
                         priceType: returnPriceType
                     };
@@ -158,7 +182,6 @@ const SalesInterface: React.FC = () => {
             setInvoiceSearchQuery("");
             setSearchAttempted(false);
             setReturnReason("");
-            setReturnQuantity(1);
             setReturnPriceType("sale");
             setCustomReturnPrice(null);
         } catch (error) {
@@ -169,10 +192,10 @@ const SalesInterface: React.FC = () => {
 
     const handleSearchAnotherInvoice = () => {
         setSelectedInvoice(null);
+        setReturnItems([]);
         setInvoiceSearchQuery("");
         setSearchAttempted(false);
         setReturnReason("");
-        setReturnQuantity(1);
         setReturnPriceType("sale");
         setCustomReturnPrice(null);
 
@@ -337,7 +360,7 @@ const SalesInterface: React.FC = () => {
 
             {/* ── Hidden Thermal Receipt for print action ───────────────────── */}
             <div style={{ position: "absolute", left: -9999, top: -9999, width: 0, height: 0, overflow: "hidden" }} aria-hidden="true">
-                <ThermalReceipt ref={printRef} cart={cart} total={cartTotal} />
+                <ThermalReceipt ref={printRef} cart={cart} total={cartTotal} userName={currentUser?.name} />
             </div>
 
             {/* ── Return modal ───────────────────────────────────── */}
@@ -384,18 +407,44 @@ const SalesInterface: React.FC = () => {
                             <div className="rounded-3xl border border-slate-800 bg-[#0f172a] p-5 space-y-4">
                                 <h4 className="text-sm font-semibold text-slate-200">المنتجات المتاحة للإرجاع</h4>
                                 <div className="space-y-3">
-                                    {selectedInvoice.items.map((item, index) => (
-                                        <div key={index} className="flex flex-col gap-2 rounded-2xl border border-slate-800 bg-[#111827] p-4">
-                                            <div className="flex justify-between items-center">
-                                                <span className="text-sm font-semibold text-white">{item.name}</span>
-                                                <span className="text-sm text-slate-400">الكمية: {item.quantity}</span>
+                                    {returnItems.map((item, index) => {
+                                        const unitPrice = getReturnItemUnitPrice(item);
+                                        return (
+                                            <div key={index} className="flex flex-col gap-2 rounded-2xl border border-slate-800 bg-[#111827] p-4">
+                                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                                    <span className="text-sm font-semibold text-white">{item.name}</span>
+                                                    <div className="flex items-center gap-2 text-sm text-slate-400">
+                                                        <span>كمية الإرجاع</span>
+                                                        <Input
+                                                            type="number"
+                                                            min={1}
+                                                            max={item.maxQuantity}
+                                                            value={item.quantity}
+                                                            onChange={(e) => {
+                                                                const newQty = Math.max(1, Math.min(item.maxQuantity, Number(e.target.value) || 1));
+                                                                setReturnItems((prev) =>
+                                                                    prev.map((prevItem) =>
+                                                                        prevItem.productId === item.productId
+                                                                            ? { ...prevItem, quantity: newQty }
+                                                                            : prevItem
+                                                                    )
+                                                                );
+                                                            }}
+                                                            className="w-24 bg-[#0f172a] border-slate-700 text-slate-100"
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div className="flex justify-between text-sm text-slate-400">
+                                                    <span>السعر للوحدة</span>
+                                                    <span className="text-slate-100">{unitPrice.toLocaleString()} ج.م</span>
+                                                </div>
+                                                <div className="flex justify-between text-sm text-slate-400">
+                                                    <span>الإجمالي</span>
+                                                    <span className="text-slate-100">{(unitPrice * item.quantity).toLocaleString()} ج.م</span>
+                                                </div>
                                             </div>
-                                            <div className="flex justify-between text-sm text-slate-400">
-                                                <span>السعر</span>
-                                                <span className="text-slate-100">{item.salesPrice.toLocaleString()} ج.م</span>
-                                            </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             </div>
 

@@ -69,7 +69,12 @@ export const registerEmployee = createAsyncThunk<RegisterEmployeeResponse, Emplo
             };
         } catch (error) {
             const axiosError = error as AxiosError<{ message: string }>;
-            return rejectWithValue(axiosError.response?.data?.message || 'فشل تسجيل الموظف');
+            const serverMsg = axiosError.response?.data?.message;
+            // translate common server messages to Arabic for UX
+            if (serverMsg && serverMsg.includes('Username already exists')) {
+                return rejectWithValue('اسم المستخدم موجود بالفعل');
+            }
+            return rejectWithValue(serverMsg || 'فشل تسجيل الموظف');
         }
     }
 );

@@ -70,9 +70,11 @@ export const getDashboardStats = async (req, res) => {
                 salesCount = salesData.count || 0;
             }
             if (returnsData) {
-                returnsAmount = returnsData.returnsAmount || 0;
+                // stored return invoices may have negative totals/netProfit (returns stored as negative amounts)
+                // treat returns as positive magnitudes for subtraction from sales/profit
+                returnsAmount = Math.abs(returnsData.returnsAmount || 0);
                 returnsCount = returnsData.count || 0;
-                returnsProfit = returnsData.returnsProfit || 0;
+                returnsProfit = Math.abs(returnsData.returnsProfit || 0);
             }
         }
 

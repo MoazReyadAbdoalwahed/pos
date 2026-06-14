@@ -31,10 +31,10 @@ const PurchaseItemSchema = z.object({
     productId: z.string().min(1, "يجب تحديد المنتج"),
     name: z.string().min(2, "اسم المنتج مطلوب"),
     barcode: z.string().optional(),
-    quantity: z.coerce.number().min(1, "الكمية يجب أن تكون 1 على الأقل"),
-    puchasePrice: z.coerce.number().min(0.01, "سعر الشراء مطلوب"), // يطابق السيرفر إملائياً
-    suggestedSalePrice: z.coerce.number().min(0).default(0),
-    suggestedWholesalePrice: z.coerce.number().min(0).default(0)
+    quantity: z.coerce.number().int("الكمية يجب أن تكون عددًا صحيحًا").min(1, "الكمية يجب أن تكون 1 على الأقل"),
+    puchasePrice: z.coerce.number().int("يجب أن يكون السعر عددًا صحيحًا").min(0, "سعر الشراء مطلوب"), // يطابق السيرفر إملائياً
+    suggestedSalePrice: z.coerce.number().int("يجب أن يكون السعر عددًا صحيحًا").min(0).default(0),
+    suggestedWholesalePrice: z.coerce.number().int("يجب أن يكون السعر عددًا صحيحًا").min(0).default(0)
 });
 
 const PurchaseInvoiceSchema = z.object({
@@ -109,7 +109,7 @@ const PurchaseInvoices = () => {
             purchaseInvoiceNumber: "",
             supplierName: "",
             purchaseDate: new Date().toISOString().slice(0, 16),
-            items: [{ productId: "temp-id", name: "", barcode: "", quantity: 1, puchasePrice: 0, suggestedSalePrice: 0, suggestedWholesalePrice: 0 }]
+            items: [{ productId: "temp-id", name: "", barcode: "", quantity: 1, puchasePrice: undefined, suggestedSalePrice: undefined, suggestedWholesalePrice: undefined }]
         }
     });
 
@@ -126,7 +126,7 @@ const PurchaseInvoices = () => {
             purchaseInvoiceNumber: "",
             supplierName: "",
             purchaseDate: new Date().toISOString().slice(0, 16),
-            items: [{ productId: "temp-id", name: "", barcode: "", quantity: 1, puchasePrice: 0, suggestedSalePrice: 0, suggestedWholesalePrice: 0 }]
+            items: [{ productId: "temp-id", name: "", barcode: "", quantity: 1, puchasePrice: undefined, suggestedSalePrice: undefined, suggestedWholesalePrice: undefined }]
         });
         setProductSearchQuery("");
         setIsEditMode(false);
@@ -149,7 +149,7 @@ const PurchaseInvoices = () => {
         if (existingIndex !== -1) {
             const currentQuantity = Number(watchedItems[existingIndex].quantity) || 0;
             setValue(`items.${existingIndex}.quantity`, currentQuantity + 1);
-            setValue(`items.${existingIndex}.puchasePrice`, product.purchasePrice || 0);
+            setValue(`items.${existingIndex}.puchasePrice`, Math.round(product.purchasePrice || 0));
             setValue(`items.${existingIndex}.name`, product.name);
             setValue(`items.${existingIndex}.barcode`, product.sku || "");
             setProductSearchQuery("");
@@ -161,9 +161,9 @@ const PurchaseInvoices = () => {
             name: product.name,
             barcode: product.sku || "",
             quantity: 1,
-            puchasePrice: product.purchasePrice || 0,
-            suggestedSalePrice: product.salePrice || 0,
-            suggestedWholesalePrice: product.wholesalePrice || 0
+            puchasePrice: Math.round(product.purchasePrice || 0),
+            suggestedSalePrice: Math.round(product.salePrice || 0),
+            suggestedWholesalePrice: Math.round(product.wholesalePrice || 0)
         });
         setProductSearchQuery("");
     };
@@ -430,38 +430,43 @@ const PurchaseInvoices = () => {
                                                         <FormInput
                                                             label="الكمية الموردة"
                                                             type="number"
+                                                            step="1"
+                                                            min={1}
                                                             icon={Hash}
-                                                            registration={register(`items.${index}.quantity` as const)}
+                                                            registration={register(`items.${index}.quantity` as const, { valueAsNumber: true })}
                                                             error={errors.items?.[index]?.quantity?.message}
                                                             disabled={isSubmitting}
                                                         />
                                                         <FormInput
                                                             label="سعر الشراء (ج.م)"
                                                             type="number"
-                                                            step="0.01"
+                                                            step="1"
+                                                            min={0}
                                                             icon={DollarSign}
                                                             className="text-emerald-400"
-                                                            registration={register(`items.${index}.puchasePrice` as const)}
+                                                            registration={register(`items.${index}.puchasePrice` as const, { valueAsNumber: true })}
                                                             error={errors.items?.[index]?.puchasePrice?.message}
                                                             disabled={isSubmitting}
                                                         />
                                                         <FormInput
                                                             label="سعر البيع المقترح"
                                                             type="number"
-                                                            step="0.01"
+                                                            step="1"
+                                                            min={0}
                                                             icon={DollarSign}
                                                             className="text-indigo-400"
-                                                            registration={register(`items.${index}.suggestedSalePrice` as const)}
+                                                            registration={register(`items.${index}.suggestedSalePrice` as const, { valueAsNumber: true })}
                                                             error={errors.items?.[index]?.suggestedSalePrice?.message}
                                                             disabled={isSubmitting}
                                                         />
                                                         <FormInput
                                                             label="سعر جملة"
                                                             type="number"
-                                                            step="0.01"
+                                                            step="1"
+                                                            min={0}
                                                             icon={DollarSign}
                                                             className="text-blue-400"
-                                                            registration={register(`items.${index}.suggestedWholesalePrice` as const)}
+                                                            registration={register(`items.${index}.suggestedWholesalePrice` as const, { valueAsNumber: true })}
                                                             error={errors.items?.[index]?.suggestedWholesalePrice?.message}
                                                             disabled={isSubmitting}
                                                         />
@@ -675,7 +680,7 @@ const PurchaseInvoices = () => {
                                 </div>
                                 <div>
                                     <span className="text-[11px] text-slate-500 block mb-0.5">الإجمالي</span>
-                                    <p className="font-bold text-xs text-amber-400">{(selectedInvoice.totalAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} ج.م</p>
+                                    <p className="font-bold text-xs text-amber-400">{Math.round(selectedInvoice.totalAmount || 0).toLocaleString()} ج.م</p>
                                 </div>
                             </div>
 
@@ -697,9 +702,9 @@ const PurchaseInvoices = () => {
                                                 <TableRow key={index} className="border-b border-slate-800 text-xs">
                                                     <TableCell className="text-slate-200 text-right">{item.name}</TableCell>
                                                     <TableCell className="text-slate-400 text-right font-mono text-[10px]">{item.barcode || "N/A"}</TableCell>
-                                                    <TableCell className="text-emerald-400 text-center font-mono">{(item.puchasePrice || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                                    <TableCell className="text-emerald-400 text-center font-mono">{Math.round(item.puchasePrice || 0).toLocaleString()}</TableCell>
                                                     <TableCell className="text-blue-400 text-center font-bold">{item.quantity}</TableCell>
-                                                    <TableCell className="text-amber-400 text-left font-mono">{((item.quantity || 0) * (item.puchasePrice || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                                    <TableCell className="text-amber-400 text-left font-mono">{Math.round((item.quantity || 0) * (item.puchasePrice || 0)).toLocaleString()}</TableCell>
                                                 </TableRow>
                                             ))}
                                         </TableBody>

@@ -14,7 +14,7 @@ import returnRouter from './routes/returnRouter.js';
 import dashboardRouter from './routes/dashboardRouter.js';
 import telegramRouter from './routes/telegramRouter.js';
 import { startDailyReportScheduler } from "./services/Dailyreportscheduler.js";
-// import TelegramLongPolling from "./services/Telegramlongpolling.js";
+import TelegramLongPolling from "./services/Telegramlongpolling.js";
 import userAuth from "./middlewares/userAuth.js";
 
 const app = express();
@@ -65,11 +65,13 @@ mongoose.connect(process.env.MONGO_URL).then(() => {
     } catch (err) {
         console.error('Error starting daily report scheduler:', err);
     }
-    // try {
-    //     TelegramLongPolling.startPolling();
-    // } catch (err) {
-    //     console.error('Error starting Telegram long-polling service:', err);
-    // }
+    try {
+        // Temporarily disable Telegram long-polling to reduce noisy logs during debugging
+        // TelegramLongPolling.startPolling();
+        console.log('Telegram long-polling is currently disabled for debugging');
+    } catch (err) {
+        console.error('Error starting Telegram long-polling service:', err);
+    }
 }).catch((err) => {
     console.error('Error connecting to MongoDB:', err);
 });

@@ -35,6 +35,8 @@ const salesSchema = new mongoose.Schema({
     totalCost: { type: Number, required: true },   // تكلفة البضاعة (موجب في البيع، سالب في المرتجع)
     netProfit: { type: Number, required: true },   // صافي الربح/الخسارة
     paymentMethod: { type: String, default: 'cash' },
+    cashierId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    cashierName: { type: String, default: null }, // اسم الموظف المسؤول عن البيع
 }, { timestamps: true });
 
 const Sale = mongoose.model('Sale', salesSchema);

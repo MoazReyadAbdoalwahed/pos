@@ -58,6 +58,28 @@ const ReturnInterface: React.FC = () => {
     const [isProcessing, setIsProcessing] = useState(false);
     const barcodeInputRef = useRef<HTMLInputElement>(null);
     const reasonInputRef = useRef<HTMLTextAreaElement>(null);
+    const [returnReason, setReturnReason] = useState("");
+
+    const tryAddScannedProduct = (rawBarcode: string) => {
+        const query = rawBarcode.trim();
+        if (!query || !products?.length) return false;
+
+        const product = products.find(
+            (p) => p.sku?.toLowerCase() === query.toLowerCase()
+        ) as ReturnProduct | undefined;
+
+        if (!product) return false;
+
+        addToReturnCart(product);
+        showSuccess(`تم إضافة ${product.name} للمرتجع`);
+        barCodeInputReset();
+        return true;
+    };
+
+    const barCodeInputReset = () => {
+        setBarcode("");
+        barcodeInputRef.current?.focus();
+    };
 
     const addToReturnCart = (product: ReturnProduct) => {
         const productId = product.id || product._id;
@@ -105,6 +127,14 @@ const ReturnInterface: React.FC = () => {
         setReturnCart((prev) => prev.filter((item) => item.productId !== productId));
     };
 
+    const normalizePrice = (value: number) => Math.round(value * 100) / 100;
+    const formatPriceInputValue = (price: number) =>
+        Number.isFinite(price)
+            ? price % 1 === 0
+                ? String(price)
+                : price.toFixed(2)
+            : "";
+
     const updateReturnPriceType = (productId: string, priceType: "sale" | "wholesale" | "custom") => {
         setReturnCart((prev) =>
             prev.map((item) => {
@@ -121,10 +151,11 @@ const ReturnInterface: React.FC = () => {
     };
 
     const updateReturnCustomPrice = (productId: string, customPrice: number) => {
+        const normalizedPrice = normalizePrice(customPrice);
         setReturnCart((prev) =>
             prev.map((item) =>
                 item.productId === productId
-                    ? { ...item, priceType: "custom", activePrice: customPrice }
+                    ? { ...item, priceType: "custom", activePrice: normalizedPrice }
                     : item
             )
         );
@@ -141,29 +172,10 @@ const ReturnInterface: React.FC = () => {
     // ── Barcode submit ────────────────────────────────────────────────────────
     const handleBarcodeSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        const query = barcode.trim();
-        if (!query) {
-            barcodeInputRef.current?.focus();
-            return;
-        }
-
-        // البحث عن المنتج بواسطة الـ sku أو الاسم
-        const product = products?.find(
-            (p) => p.sku === query || p.name.toLowerCase().includes(query.toLowerCase())
-        ) as ReturnProduct | undefined;
-
-        if (!product) {
+        if (!tryAddScannedProduct(barcode)) {
             showError("المنتج غير مسجل بالسيستم");
-            setBarcode("");
-            barcodeInputRef.current?.focus();
-            return;
+            barCodeInputReset();
         }
-
-        addToReturnCart(product);
-
-        showSuccess(`تم إضافة ${product.name} للمرتجع`);
-        setBarcode("");
-        barcodeInputRef.current?.focus();
     };
 
     // ── Submit Return to Backend ──────────────────────────────────────────────
@@ -183,9 +195,11 @@ const ReturnInterface: React.FC = () => {
         setIsProcessing(true);
         try {
             const cashierId = currentUser?.id || currentUser?._id || undefined;
+            const cashierName = currentUser?.name || undefined;
 
             const payload: ReturnSaleFormData = {
                 cashierId,
+                cashierName,
                 returnType: "direct",
                 originalInvoiceNumber: "DIRECT-RETURN", // مخصصة للمرتجعات المباشرة الحرة بدون فاتورة مرجعية
                 itemsToReturn: returnCart.map((item) => ({
@@ -253,16 +267,27 @@ const ReturnInterface: React.FC = () => {
                         <CardContent>
                             <form onSubmit={handleBarcodeSubmit} className="flex gap-3">
                                 <Input
+                                    ref={barcodeInputRef}
                                     value={barcode}
                                     onChange={(e) => setBarcode(e.target.value)}
-                                    placeholder="اضرب بالاسكانر هنا لقراءة المنتج المراد إرجاعه..."
+                                    placeholder="اضرب الباركود ثم اضغط Enter أو اضغط إضافة"
                                     className="flex-1 text-center font-mono text-lg bg-[#0f172a] border-slate-700 text-white placeholder-slate-500 focus:border-rose-500 focus:ring-rose-500"
                                     autoFocus
                                 />
                                 <Button type="submit" className="bg-rose-600 hover:bg-rose-700 text-white px-6 shrink-0">
-                                    إرجاع الصنف
+                                    إضافة
                                 </Button>
                             </form>
+                            <div className="space-y-4 mt-4">
+                                <label className="text-sm text-slate-300">سبب الإرجاع</label>
+                                <textarea
+                                    ref={reasonInputRef}
+                                    value={returnReason}
+                                    onChange={(e) => setReturnReason(e.target.value)}
+                                    placeholder="أدخل سبب الإرجاع هنا"
+                                    className="w-full min-h-25 rounded-2xl border border-slate-700 bg-[#0f172a] p-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-rose-500 focus:ring-rose-500"
+                                />
+                            </div>
                         </CardContent>
                     </Card>
                 </div>
@@ -319,7 +344,7 @@ const ReturnInterface: React.FC = () => {
                                                                         type="number"
                                                                         min="0"
                                                                         step="0.01"
-                                                                        value={item.activePrice === 0 ? "" : item.activePrice}
+                                                                        value={item.activePrice === 0 ? "" : formatPriceInputValue(item.activePrice)}
                                                                         onChange={(e) => {
                                                                             const value = e.target.value.trim();
                                                                             const customPrice = parseFloat(value);
@@ -334,6 +359,8 @@ const ReturnInterface: React.FC = () => {
                                                                             const value = parseFloat(e.target.value);
                                                                             if (!e.target.value.trim() || value === 0 || isNaN(value)) {
                                                                                 updateReturnPriceType(item.productId, "sale");
+                                                                            } else {
+                                                                                updateReturnCustomPrice(item.productId, value);
                                                                             }
                                                                         }}
                                                                         placeholder="أدخل السعر"

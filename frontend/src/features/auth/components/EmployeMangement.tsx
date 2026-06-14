@@ -94,9 +94,23 @@ export default function EmployeeManagement() {
     }, [fetchEmployees]);
 
     const onSubmit: SubmitHandler<EmployeeInput> = async (data) => {
+        const trimmedUsername = data.username.trim();
+        const normalizedUsername = trimmedUsername.toLowerCase();
+
+        // Ensure we have a fresh employee list before checking
+        if (!employeeList || employeeList.length === 0) {
+            await getAllEmployees();
+        }
+
+        // Prevent submitting an already-existing username (client-side guard, normalized)
+        if (employeeList && employeeList.some((e: any) => (e.username || '').toLowerCase() === normalizedUsername)) {
+            showError('اسم المستخدم موجود بالفعل');
+            return;
+        }
+
         const result = await registerEmployee({
             ...data,
-            username: data.username.trim(),
+            username: normalizedUsername,
         });
 
         if (result.meta?.requestStatus === "fulfilled") {

@@ -271,7 +271,7 @@ const DashboardPage: React.FC = () => {
 
                         {/* Start date */}
                         <div>
-                            <label className="block text-xs text-slate-400 mb-1.5 flex items-center gap-1">
+                            <label className="flex text-xs text-slate-400 mb-1.5 items-center gap-1">
                                 <CalendarRange className="w-3.5 h-3.5" />
                                 تاريخ البداية
                             </label>
@@ -285,7 +285,7 @@ const DashboardPage: React.FC = () => {
 
                         {/* End date */}
                         <div>
-                            <label className="block text-xs text-slate-400 mb-1.5 flex items-center gap-1">
+                            <label className="flex text-xs text-slate-400 mb-1.5 items-center gap-1">
                                 <CalendarRange className="w-3.5 h-3.5" />
                                 تاريخ النهاية
                             </label>
@@ -446,7 +446,7 @@ const DashboardPage: React.FC = () => {
                     {/* Phone input */}
                     <div className="flex gap-3 items-end">
                         <div className="flex-1">
-                            <label className="block text-xs text-slate-400 mb-1.5 flex items-center gap-1">
+                            <label className="flex text-xs text-slate-400 mb-1.5 items-center gap-1">
                                 <Phone className="w-3.5 h-3.5" />
                                 رقم الهاتف
                             </label>

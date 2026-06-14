@@ -22,6 +22,7 @@ export interface Sale {
     paymentMethod: 'cash' | 'card' | string;
     invoiceType: 'sales' | 'return';  // نوع الفاتورة المسجل بالسيرفر
     cashierId: string | null;         // معرف الكاشير المسؤول
+    cashierName: string | null;       // اسم الكاشير المسؤول
     createdAt: string;
     updatedAt: string;
 }
@@ -32,10 +33,11 @@ export interface SaleFormData {
         productId: string;
         quantity: number;
         customPrice?: number;         // اختياري في حال البيع بسعر يدوي حُر
-        priceType?: 'sale' | 'wholesale'; // تحديد نوع السعر للصنف
+        priceType?: 'sale' | 'wholesale' | 'custom'; // تحديد نوع السعر للصنف
     }[];
     paymentMethod: 'cash' | 'card' | string;
     cashierId?: string;
+    cashierName?: string;             // اسم الموظف الذي قام ببيع المنتج
 }
 
 // ─── 4. واجهة البيانات المرسلة لعمل مرتجع ──────────────────────────────────────
@@ -49,6 +51,7 @@ export interface ReturnSaleFormData {
         priceType?: 'sale' | 'wholesale' | 'custom';
     }[];
     cashierId?: string;
+    cashierName?: string;             // اسم الموظف الذي قام بتسجيل المرتجع
 }
 
 // ─── 5. حالة المبيعات داخل متجر الـ Redux State ────────────────────────────────

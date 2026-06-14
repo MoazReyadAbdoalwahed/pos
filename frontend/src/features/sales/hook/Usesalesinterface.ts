@@ -24,6 +24,7 @@ export function useSalesInterface() {
     // ── Redux ──────────────────────────────────────────────
     const products = useAppSelector(selectAllProducts);
     const productsLoading = useAppSelector(selectProductsLoading);
+    const currentUser = useAppSelector(state => state.auth.user);
     const [cart, setCart] = useState<CartItem[]>([]);
     const cartTotal = cart.reduce((sum, it) => sum + it.activePrice * it.quantity, 0);
 
@@ -156,11 +157,13 @@ export function useSalesInterface() {
                 salePrice: item.activePrice,
                 wholesalePrice: item.wholesalePrice,
                 priceType: item.priceType,
+                ...(item.priceType === 'custom' ? { customPrice: item.activePrice } : {}),
             }));
 
             const res = await axiosInstance.post(`/sales/check-invoice`, {
                 items: backendItems,
                 paymentMethod: "cash",
+                cashierName: currentUser?.name,
             });
 
             const invoiceNumber = res.data?.invoice?.invoiceNumber ?? res.data?.invoiceNumber;
@@ -211,7 +214,7 @@ export function useSalesInterface() {
         } finally {
             setIsCheckingOut(false);
         }
-    }, [cart, cartTotal, clientPhone, dispatch, setCart, toast]);
+    }, [cart, cartTotal, clientPhone, currentUser, dispatch, setCart, toast]);
 
     // ── Derived ────────────────────────────────────────────
     const filteredProducts = products.filter(

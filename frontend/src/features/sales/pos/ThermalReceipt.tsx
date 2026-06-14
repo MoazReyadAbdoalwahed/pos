@@ -15,6 +15,7 @@ interface ThermalReceiptProps {
     cart?: PrintCartItem[];
     total?: number;
     invoice?: SalesInvoice | null;
+    userName?: string | null;
     formatDateTime?: (isoString: string) => { date: string; time: string };
 }
 
@@ -48,7 +49,7 @@ const Divider = () => (
 );
 
 const ThermalReceipt = React.forwardRef<HTMLDivElement, ThermalReceiptProps>(
-    ({ cart = [], total = 0, invoice = null, formatDateTime }, ref) => {
+    ({ cart = [], total = 0, invoice = null, userName = null, formatDateTime }, ref) => {
 
         const shopName = "معرض الفجر للأدوات المنزلية";
         const phone1 = "01093000465";
@@ -56,10 +57,8 @@ const ThermalReceipt = React.forwardRef<HTMLDivElement, ThermalReceiptProps>(
         const phone3 = "01024676845";
         const address = "الروضة – شارع السنترال – خلف السيد الفكهاني";
         const facebookUrl = "https://www.facebook.com/share/1UT1ZGev6Y/?mibextid=wwXIfr";
-        const receiptId = React.useMemo(
-            () => invoice?.invoiceNumber ?? `INV-${Date.now()}`,
-            [invoice]
-        );
+        const [generatedReceiptId] = React.useState(() => `INV-${Date.now()}`);
+        const receiptId = invoice?.invoiceNumber ?? generatedReceiptId;
 
         const currentDate = invoice
             ? (formatDateTime?.(invoice.createdAt)?.date ?? new Date().toLocaleDateString("en-US"))
@@ -203,6 +202,7 @@ const ThermalReceipt = React.forwardRef<HTMLDivElement, ThermalReceiptProps>(
                         { label: "الوقت:", value: currentTime, small: false },
                         { label: "رقم الفاتورة:", value: receiptId, small: true },
                         { label: "حالة السداد:", value: "✓ كاش (نقدي)", small: false },
+                        { label: "المسؤول:", value: userName || invoice?.cashierName || "غير محدد", small: false },
                     ].map(({ label, value, small }) => (
                         <div key={label} style={{ display: "flex", justifyContent: "space-between", marginBottom: "1px" }}>
                             <span style={{ color: "#666" }}>{label}</span>
@@ -228,27 +228,45 @@ const ThermalReceipt = React.forwardRef<HTMLDivElement, ThermalReceiptProps>(
                         <span style={{ flex: "0 0 34%", textAlign: "left" }}>الإجمالي</span>
                     </div>
 
-                    {(isInvoice ? invoice!.items : cart).map((item: any, idx: number) => (
-                        <div key={item.productId || idx} className="invoice-item-row" style={{
-                            display: "flex",
-                            alignItems: "center",
-                            fontSize: "11px",
-                            padding: "3px 0",
-                            borderBottom: "1px dotted #ccc",
-                        }}>
-                            <span style={{ flex: "1 1 50%", textAlign: "right", wordBreak: "break-word" }}>
-                                {item.name}
-                            </span>
-                            <span style={{ flex: "0 0 16%", textAlign: "center", fontWeight: "bold" }}>
-                                {item.quantity}
-                            </span>
-                            <span style={{ flex: "0 0 34%", textAlign: "left" }}>
-                                {isInvoice
-                                    ? item.totalItemPrice.toFixed(2)
-                                    : (item.activePrice * item.quantity).toFixed(2)}
-                            </span>
-                        </div>
-                    ))}
+                    {isInvoice
+                        ? invoice!.items.map((item, idx) => (
+                            <div key={item.productId || idx} className="invoice-item-row" style={{
+                                display: "flex",
+                                alignItems: "center",
+                                fontSize: "11px",
+                                padding: "3px 0",
+                                borderBottom: "1px dotted #ccc",
+                            }}>
+                                <span style={{ flex: "1 1 50%", textAlign: "right", wordBreak: "break-word" }}>
+                                    {item.name}
+                                </span>
+                                <span style={{ flex: "0 0 16%", textAlign: "center", fontWeight: "bold" }}>
+                                    {item.quantity}
+                                </span>
+                                <span style={{ flex: "0 0 34%", textAlign: "left" }}>
+                                    {Math.round(item.totalItemPrice || 0).toLocaleString()}
+                                </span>
+                            </div>
+                        ))
+                        : cart.map((item, idx) => (
+                            <div key={item.productId || idx} className="invoice-item-row" style={{
+                                display: "flex",
+                                alignItems: "center",
+                                fontSize: "11px",
+                                padding: "3px 0",
+                                borderBottom: "1px dotted #ccc",
+                            }}>
+                                <span style={{ flex: "1 1 50%", textAlign: "right", wordBreak: "break-word" }}>
+                                    {item.name}
+                                </span>
+                                <span style={{ flex: "0 0 16%", textAlign: "center", fontWeight: "bold" }}>
+                                    {item.quantity}
+                                </span>
+                                <span style={{ flex: "0 0 34%", textAlign: "left" }}>
+                                    {Math.round(item.activePrice * item.quantity).toLocaleString()}
+                                </span>
+                            </div>
+                        ))}
                 </div>
 
                 {/* ══ TOTAL ══ */}
@@ -263,7 +281,7 @@ const ThermalReceipt = React.forwardRef<HTMLDivElement, ThermalReceiptProps>(
                     marginBottom: "10px",
                 }}>
                     <span>{isInvoice ? "إجمالي الفاتورة:" : "الإجمالي الصافي:"}</span>
-                    <span>{(isInvoice ? invoice?.totalAmount ?? 0 : total).toFixed(2)} ج.م</span>
+                    <span>{Math.round(isInvoice ? invoice?.totalAmount ?? 0 : total).toLocaleString()} ج.م</span>
                 </div>
 
                 {/* ══ BARCODE ══ */}

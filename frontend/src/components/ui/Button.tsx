@@ -5,10 +5,10 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     children?: ReactNode;
 
     /** Visual variant of the button */
-    variant?: 'primary' | 'secondary' | 'danger' | 'text' | 'admin' | 'outline';
+    variant?: 'primary' | 'secondary' | 'danger' | 'text' | 'admin' | 'outline' | 'ghost';
 
     /** Button size */
-    size?: 'sm' | 'md' | 'lg';
+    size?: 'sm' | 'md' | 'lg' | 'icon';
 
     /** Optional icon to display (usually from lucide-react) */
     icon?: React.ComponentType<{ className?: string }>;
@@ -56,13 +56,14 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         ref
     ) => {
         // Base classes - common to all buttons
-        const baseClasses = 'inline-flex items-center justify-center gap-1.5 font-medium transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed';
+        const baseClasses = 'inline-flex items-center justify-center gap-1.5 font-medium transition duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed';
 
         // Size variants
         const sizeClasses = {
             sm: 'px-3 py-1.5 text-xs rounded-lg',
             md: 'px-4 py-2.5 text-sm rounded-lg',
             lg: 'px-5 py-3 text-base rounded-lg',
+            icon: 'p-2 rounded-lg',
         };
 
         // Color variants
@@ -73,6 +74,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
             text: 'text-slate-400 hover:text-white',
             admin: 'bg-linear-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white shadow-lg',
             outline: 'bg-transparent border border-slate-700 text-slate-200 hover:bg-slate-800 shadow-none',
+            ghost: 'bg-transparent text-slate-300 hover:bg-slate-800 shadow-none',
         };
 
         // Combine classes

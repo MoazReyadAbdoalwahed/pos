@@ -97,26 +97,28 @@ const adminLogin = async (req, res) => {
 
 const registerEmployee = async (req, res) => {
     try {
+        console.log('Register employee request body:', req.body);
         const { name, username, password, role } = req.body;
-        if (!name || !username || !password || !role) {
+        // normalize username to avoid case/whitespace duplicates
+        const normalizedUsername = typeof username === 'string' ? username.trim().toLowerCase() : username;
+        if (!name || !normalizedUsername || !password || !role) {
             return res.status(400).json({ message: "All fields are required" });
         }
 
-        // Get allowed roles from the schema
-        const allowedRoles = User.schema.path('role').enumValues;
-        if (!allowedRoles.includes(role)) {
+        // Get allowed roles from the schema (safe access)
+        const rolePath = User.schema.path && User.schema.path('role');
+        const allowedRoles = (rolePath && (rolePath.enumValues || (rolePath.options && rolePath.options.enum))) || [];
+        if (!Array.isArray(allowedRoles) || allowedRoles.length === 0) {
+            console.warn('Could not read allowed roles from User schema, falling back to defaults');
+        }
+        if (allowedRoles.length && !allowedRoles.includes(role)) {
             return res.status(400).json({ message: `Invalid role. Allowed roles: ${allowedRoles.join(", ")}` });
         }
 
-        // Check if the username already exists
-        const existingUser = await User.findOne({ username });
-        if (existingUser) {
-            return res.status(400).json({ message: "Username already exists" });
-        }
-        // Create a new user
+        // Create a new user (attempt save and handle duplicate-key errors)
         const newUser = new User({
             name,
-            username,
+            username: normalizedUsername,
             password,
             role,
             isActive: true, // Set the new user as active by default
@@ -132,8 +134,18 @@ const registerEmployee = async (req, res) => {
             }
         });
     } catch (err) {
-        console.error("Employee registration error:", err.message);
-        res.status(500).json({ message: "Server error" });
+        console.error("Employee registration error:", err);
+        // Include stack in server log; return more specific message when available
+        const errMsg = err && err.message ? err.message : 'Server error';
+        // Handle common mongoose errors explicitly
+        if (err.name === 'ValidationError') {
+            return res.status(400).json({ message: err.message });
+        }
+        if (err.code === 11000) {
+            // duplicate key error
+            return res.status(409).json({ message: 'Username already exists' });
+        }
+        res.status(500).json({ message: errMsg });
     }
 };
 
